@@ -6,67 +6,76 @@
   <meta name="theme-color" content="#0b0f18" />
   <title>KML Navigator</title>
 
-  <link rel="manifest" href="manifest.webmanifest?v=1" />
+  <link rel="manifest" href="manifest.webmanifest?v=GE1" />
   <link rel="apple-touch-icon" href="icons/logo.jpg" />
-  <link rel="stylesheet" href="style.css?v=1" />
-
-  <!-- Leaflet (harita) -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="style.css?v=GE1" />
 </head>
 <body>
 
-<!-- EKRAN 1: KML SEÇ -->
+<!-- EKRAN 1 -->
 <main id="screenPick" class="screenPick">
   <div class="pickCard">
     <img class="pickLogo" src="icons/logo.jpg" alt="Logo" />
     <div class="pickTitle">KML Navigator</div>
-    <div class="pickSub">KML yükleyin → Harita + Liste</div>
+    <div class="pickSub">KML seç → Uydu + Konum + Noktalar</div>
 
     <label class="pickBtn">
       KML Seç
       <input id="fileInput" type="file" accept=".kml,application/vnd.google-earth.kml+xml" hidden />
     </label>
+
+    <div class="pickHint">
+      iPhone: Safari → Paylaş → <b>Ana Ekrana Ekle</b><br/>
+      Android: Chrome → <b>Install</b>
+    </div>
+
+    <div class="pickHint" id="pickError" style="display:none;"></div>
   </div>
 </main>
 
-<!-- EKRAN 2: HARİTA -->
+<!-- EKRAN 2 -->
 <div id="screenMain" class="screenMain" style="display:none;">
-
-<header class="topbar">
-  <div class="brand">
-    <img class="brandLogo" src="icons/logo.jpg" />
-    <div>
-      <div class="brandTitle">KML Navigator</div>
-      <div class="brandSub" id="status">Hazır</div>
+  <header class="topbar">
+    <div class="brand">
+      <img class="brandLogo" src="icons/logo.jpg" alt="Logo" />
+      <div>
+        <div class="brandTitle">KML Navigator</div>
+        <div class="brandSub" id="status">-</div>
+      </div>
     </div>
-  </div>
 
-  <div class="actions">
-    <button class="btn ghost" id="btnReupload">KML Değiştir</button>
-    <button class="btn ghost" id="btnFit">Kanavaya Yaklaş</button>
-    <button class="btn ghost" id="btnMe">Konumum</button>
-    <button class="btn ghost" id="btnClear">Temizle</button>
-  </div>
-</header>
+    <div class="actions">
+      <button class="btn ghost" id="btnReupload" type="button">KML Değiştir</button>
+      <button class="btn ghost" id="btnFit" type="button">Kanavaya Yaklaş</button>
+      <button class="btn ghost" id="btnMe" type="button">Konumum</button>
+      <button class="btn ghost" id="btnClear" type="button">Temizle</button>
+    </div>
+  </header>
 
-<section class="mapWrap">
-  <div id="map" class="map"></div>
+  <section class="mapWrap">
+    <div id="map" class="map"></div>
+    <div class="mapChips">
+      <span class="chip" id="chipCount">0 nokta</span>
+      <span class="chip" id="chipGps">GPS: -</span>
+    </div>
+  </section>
 
-  <div class="mapChips">
-    <span class="chip" id="chipCount">0 nokta</span>
-    <span class="chip" id="chipGps">GPS: -</span>
-  </div>
-</section>
-
-<section class="listPanel">
-  <input id="search" class="search" placeholder="Nokta ara..." />
-  <div id="list" class="list"></div>
-</section>
-
+  <section class="listPanel">
+    <input id="search" class="search" placeholder="Nokta ara..." autocomplete="off" />
+    <div id="list" class="list"></div>
+  </section>
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js?v=1"></script>
+<div class="toast" id="toast"></div>
+
+<script src="app.js?v=GE1"></script>
+
+<!-- Google Maps JS API: KEY'i buraya yaz -->
+<script
+  async
+  defer
+  src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&v=weekly&callback=onGoogleMapsLoaded">
+</script>
 
 </body>
 </html>
