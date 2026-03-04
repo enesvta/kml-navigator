@@ -168,7 +168,7 @@ function setKmlMarkers(){
 
   const labelStyle = {
     fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif",
-    fontSize: "12px",
+    fontSize: "11px",
     fontWeight: "900",
     color: "#0b1020",
   };
@@ -179,7 +179,7 @@ function setKmlMarkers(){
 
     // Modern bubble + pointer SVG
     const svg = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="118" height="56" viewBox="0 0 118 56">
+      <svg xmlns="http://www.w3.org/2000/svg" width="92" height="44" viewBox="0 0 92 44">
         <defs>
           <filter id="s" x="-40%" y="-40%" width="180%" height="180%">
             <feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="rgba(0,0,0,0.35)"/>
@@ -199,9 +199,9 @@ function setKmlMarkers(){
 
     const icon = {
       url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg),
-      scaledSize: new google.maps.Size(118, 56),
-      anchor: new google.maps.Point(59, 46),
-      labelOrigin: new google.maps.Point(66, 23),
+      scaledSize: new google.maps.Size(92, 44),
+      anchor: new google.maps.Point(46, 36),
+      labelOrigin: new google.maps.Point(52, 18),
     };
 
     const m = new google.maps.Marker({
@@ -428,3 +428,4 @@ if ("serviceWorker" in navigator){
 }
 
 setStatus("KML yükleyin");
+
