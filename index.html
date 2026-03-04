@@ -6,71 +6,67 @@
   <meta name="theme-color" content="#0b0f18" />
   <title>KML Navigator</title>
 
-  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="manifest" href="manifest.webmanifest?v=1" />
   <link rel="apple-touch-icon" href="icons/logo.jpg" />
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=1" />
 
-  <!-- Leaflet -->
+  <!-- Leaflet (harita) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </head>
-
 <body>
-  <!-- SCREEN 1: KML seç -->
-  <main id="screenPick" class="screenPick">
-    <div class="pickCard">
-      <img class="pickLogo" src="icons/logo.jpg" alt="Logo" />
-      <div class="pickTitle">KML Navigator</div>
-      <div class="pickSub">KML yükleyin → Harita + Liste</div>
 
-      <label class="pickBtn">
-        KML Seç
-        <input id="fileInput" type="file" accept=".kml,application/vnd.google-earth.kml+xml" hidden />
-      </label>
+<!-- EKRAN 1: KML SEÇ -->
+<main id="screenPick" class="screenPick">
+  <div class="pickCard">
+    <img class="pickLogo" src="icons/logo.jpg" alt="Logo" />
+    <div class="pickTitle">KML Navigator</div>
+    <div class="pickSub">KML yükleyin → Harita + Liste</div>
 
-      <div class="pickHint">
-        iPhone: Safari → Paylaş → <b>Ana Ekrana Ekle</b><br/>
-        Android: Chrome → <b>Install</b>
-      </div>
+    <label class="pickBtn">
+      KML Seç
+      <input id="fileInput" type="file" accept=".kml,application/vnd.google-earth.kml+xml" hidden />
+    </label>
+  </div>
+</main>
+
+<!-- EKRAN 2: HARİTA -->
+<div id="screenMain" class="screenMain" style="display:none;">
+
+<header class="topbar">
+  <div class="brand">
+    <img class="brandLogo" src="icons/logo.jpg" />
+    <div>
+      <div class="brandTitle">KML Navigator</div>
+      <div class="brandSub" id="status">Hazır</div>
     </div>
-  </main>
-
-  <!-- SCREEN 2: Harita + Liste -->
-  <div id="screenMain" class="screenMain" style="display:none;">
-    <header class="topbar">
-      <div class="brand">
-        <img class="brandLogo" src="icons/logo.jpg" alt="Logo" />
-        <div>
-          <div class="brandTitle">KML Navigator</div>
-          <div class="brandSub" id="status">-</div>
-        </div>
-      </div>
-
-      <div class="actions">
-        <button class="btn ghost" id="btnReupload" type="button">KML Değiştir</button>
-        <button class="btn ghost" id="btnFit" type="button">Kanavaya Yaklaş</button>
-        <button class="btn ghost" id="btnMe" type="button">Konumum</button>
-        <button class="btn ghost" id="btnClear" type="button">Temizle</button>
-      </div>
-    </header>
-
-    <section class="mapWrap">
-      <div id="map" class="map"></div>
-      <div class="mapChips">
-        <span class="chip" id="chipCount">0 nokta</span>
-        <span class="chip" id="chipGps">GPS: -</span>
-      </div>
-    </section>
-
-    <section class="listPanel">
-      <div class="listTop">
-        <input id="search" class="search" placeholder="Nokta ara..." autocomplete="off" />
-      </div>
-      <div id="list" class="list"></div>
-    </section>
   </div>
 
-  <!-- Leaflet -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="app.js"></script>
+  <div class="actions">
+    <button class="btn ghost" id="btnReupload">KML Değiştir</button>
+    <button class="btn ghost" id="btnFit">Kanavaya Yaklaş</button>
+    <button class="btn ghost" id="btnMe">Konumum</button>
+    <button class="btn ghost" id="btnClear">Temizle</button>
+  </div>
+</header>
+
+<section class="mapWrap">
+  <div id="map" class="map"></div>
+
+  <div class="mapChips">
+    <span class="chip" id="chipCount">0 nokta</span>
+    <span class="chip" id="chipGps">GPS: -</span>
+  </div>
+</section>
+
+<section class="listPanel">
+  <input id="search" class="search" placeholder="Nokta ara..." />
+  <div id="list" class="list"></div>
+</section>
+
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="app.js?v=1"></script>
+
 </body>
 </html>
