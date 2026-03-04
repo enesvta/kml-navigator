@@ -1,4 +1,4 @@
-const CACHE = "kml-central-v1";
+const CACHE = "kml-central-v23";
 
 const BASE = new URL("./", self.location).pathname.replace(/\/$/, "");
 const ASSETS = [
@@ -30,3 +30,4 @@ self.addEventListener("fetch", (e) => {
     caches.match(e.request).then(cached => cached || fetch(e.request).catch(() => caches.match(`${BASE}/index.html`)))
   );
 });
+
