@@ -1,4 +1,3 @@
-// Google Maps callback
 window.onGoogleMapsLoaded = () => {
   window.__gmapsReady = true;
   tryInitFromStorage();
@@ -8,7 +7,6 @@ const els = {
   screenPick: document.getElementById("screenPick"),
   screenMain: document.getElementById("screenMain"),
   fileInput: document.getElementById("fileInput"),
-  pickError: document.getElementById("pickError"),
 
   status: document.getElementById("status"),
   chipCount: document.getElementById("chipCount"),
@@ -20,436 +18,295 @@ const els = {
   btnClear: document.getElementById("btnClear"),
 
   search: document.getElementById("search"),
-  list: document.getElementById("list"),
-
-  toast: document.getElementById("toast"),
+  list: document.getElementById("list")
 };
 
-let points = [];
 let map = null;
+let points = [];
 let markers = [];
 
-let meMarker = null;
-let meAccuracyCircle = null;
+let gpsMarker = null;
 let lastPos = null;
 let watchId = null;
 
-function toast(msg) {
-  if (!els.toast) return;
-  els.toast.textContent = msg;
-  els.toast.style.opacity = "1";
-  clearTimeout(window.__toastT);
-  window.__toastT = setTimeout(() => (els.toast.style.opacity = "0"), 1600);
-}
 
-function setStatus(t) {
-  if (els.status) els.status.textContent = t;
-}
+function initMap(){
 
-function showPickError(msg) {
-  if (!els.pickError) return;
-  els.pickError.style.display = "block";
-  els.pickError.textContent = msg;
-}
-function hidePickError() {
-  if (!els.pickError) return;
-  els.pickError.style.display = "none";
-  els.pickError.textContent = "";
-}
+  if(map) return;
 
-function goMainScreen() {
-  els.screenPick.style.display = "none";
-  els.screenMain.style.display = "flex";
-}
-function goPickScreen() {
-  els.screenMain.style.display = "none";
-  els.screenPick.style.display = "flex";
-}
-
-// ---------- Storage ----------
-function savePoints() {
-  localStorage.setItem("kmlnav_points", JSON.stringify(points));
-}
-function loadPoints() {
-  try {
-    const p = JSON.parse(localStorage.getItem("kmlnav_points") || "[]");
-    if (Array.isArray(p) && p.length) {
-      points = p;
-      return true;
-    }
-  } catch (_) {}
-  return false;
-}
-function clearAll() {
-  localStorage.removeItem("kmlnav_points");
-  points = [];
-}
-
-// ---------- KML parse ----------
-function normalizeName(name, fallback) {
-  const t = (name || "").trim();
-  return t ? t : fallback;
-}
-
-function parseKml(kmlText) {
-  const parser = new DOMParser();
-  const xml = parser.parseFromString(kmlText, "application/xml");
-  const parseError = xml.querySelector("parsererror");
-  if (parseError) throw new Error("KML parse edilemedi (dosya bozuk olabilir).");
-
-  const placemarks = Array.from(xml.getElementsByTagName("Placemark"));
-  const out = [];
-  let c = 0;
-
-  for (const pm of placemarks) {
-    const nameEl = pm.getElementsByTagName("name")[0];
-    const name = normalizeName(nameEl?.textContent, `Point ${c + 1}`);
-
-    const pointEl = pm.getElementsByTagName("Point")[0];
-    let coordEl = null;
-    if (pointEl) coordEl = pointEl.getElementsByTagName("coordinates")[0];
-    if (!coordEl) coordEl = pm.getElementsByTagName("coordinates")[0];
-    if (!coordEl) continue;
-
-    const raw = (coordEl.textContent || "").trim();
-    if (!raw) continue;
-
-    const first = raw
-      .replace(/\n/g, " ")
-      .split(/\s+/)
-      .filter(Boolean)[0];
-    if (!first) continue;
-
-    const parts = first.split(",");
-    if (parts.length < 2) continue;
-
-    const lon = Number(parts[0]);
-    const lat = Number(parts[1]);
-    if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
-
-    out.push({ name, lat, lon });
-    c++;
-  }
-
-  return out;
-}
-
-// ---------- Google Maps init ----------
-function ensureGMaps() {
-  if (!window.__gmapsReady || typeof google === "undefined" || !google.maps) {
-    throw new Error("Google Maps yüklenmedi. API key / billing / internet kontrol edin.");
-  }
-}
-
-function initMap() {
-  ensureGMaps();
-  if (map) return;
-
-  map = new google.maps.Map(document.getElementById("map"), {
-    center: { lat: 39.0, lng: 35.0 },
-    zoom: 6,
-    mapTypeId: "satellite",
-    fullscreenControl: false,
-    streetViewControl: false,
-    mapTypeControl: false,
-    clickableIcons: false,
+  map = new google.maps.Map(document.getElementById("map"),{
+    center:{lat:39,lng:35},
+    zoom:6,
+    mapTypeId:"satellite",
+    fullscreenControl:false,
+    streetViewControl:false,
+    mapTypeControl:false
   });
+
 }
 
-function clearMarkers() {
-  for (const m of markers) m.setMap(null);
-  markers = [];
+function parseKml(text){
+
+  const xml = new DOMParser().parseFromString(text,"text/xml");
+  const placemarks=[...xml.getElementsByTagName("Placemark")];
+
+  const pts=[];
+
+  placemarks.forEach((pm,i)=>{
+
+    const name=pm.getElementsByTagName("name")[0]?.textContent || `P${i+1}`;
+    const coord=pm.getElementsByTagName("coordinates")[0]?.textContent.trim();
+
+    if(!coord) return;
+
+    const parts=coord.split(",");
+    pts.push({
+      name:name,
+      lat:parseFloat(parts[1]),
+      lon:parseFloat(parts[0])
+    });
+
+  });
+
+  return pts;
+
 }
 
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, (m) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#039;",
-  })[m]);
+function clearMarkers(){
+
+  markers.forEach(m=>m.setMap(null));
+  markers=[];
+
 }
 
-// ---------- Modern minimalist marker (pill + crosshair) ----------
-function setKmlMarkers() {
+function setKmlMarkers(){
+
   initMap();
   clearMarkers();
 
-  const labelStyle = {
-    fontFamily:
-      "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif",
-    fontSize: "11px",
-    fontWeight: "900",
-    color: "#ffffff",
+  const labelStyle={
+    fontFamily:"system-ui",
+    fontSize:"11px",
+    fontWeight:"900",
+    color:"#fff"
   };
 
-  for (let i = 0; i < points.length; i++) {
-    const p = points[i];
-    const labelText = (p.name || `${i + 1}`).trim();
+  points.forEach((p,i)=>{
 
-    // Teal pill + crosshair = noktanın tam yerini net görürsün
-    const svg = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="92" height="58" viewBox="0 0 92 58">
-        <defs>
-          <filter id="s" x="-40%" y="-40%" width="180%" height="180%">
-            <feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="rgba(0,0,0,0.35)"/>
-          </filter>
-        </defs>
+    const svg=`
+<svg xmlns="http://www.w3.org/2000/svg" width="92" height="58" viewBox="0 0 92 58">
 
-        <!-- Label pill -->
-        <g filter="url(#s)">
-          <rect x="10" y="8" rx="999" ry="999" width="72" height="24"
-                fill="rgba(20,184,166,0)"/>
-          <rect x="10" y="8" rx="999" ry="999" width="72" height="24"
-                fill="none" stroke="rgba(255,255,255,0.22)"/>
-        </g>
+<defs>
+<filter id="s" x="-40%" y="-40%" width="180%" height="180%">
+<feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="rgba(0,0,0,0.35)"/>
+</filter>
+</defs>
 
-        <!-- Crosshair center: (46,48) -->
-        <line x1="46" y1="36" x2="46" y2="56" stroke="rgba(255,255,255,0.9)" stroke-width="2" stroke-linecap="round"/>
-        <line x1="36" y1="48" x2="56" y2="48" stroke="rgba(255,255,255,0.9)" stroke-width="2" stroke-linecap="round"/>
+<g filter="url(#s)">
+<rect x="10" y="8" rx="999" ry="999" width="72" height="24"
+fill="rgba(20,184,166,0.40)"
+stroke="rgba(255,255,255,0.35)"
+stroke-width="1"/>
+</g>
 
-        <!-- exact point -->
-        <circle cx="46" cy="48" r="4.2" fill="rgba(0,0,0,0.25)"/>
-        <circle cx="46" cy="48" r="3.2" fill="rgba(255,255,255,0.95)"/>
-      </svg>
-    `;
+<line x1="46" y1="36" x2="46" y2="56" stroke="white" stroke-width="2"/>
+<line x1="36" y1="48" x2="56" y2="48" stroke="white" stroke-width="2"/>
 
-    const icon = {
-      url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg),
-      scaledSize: new google.maps.Size(92, 58),
-      anchor: new google.maps.Point(46, 48),      // tam koordinat
-      labelOrigin: new google.maps.Point(46, 25), // yazı ortası
+<circle cx="46" cy="48" r="4" fill="black" opacity="0.3"/>
+<circle cx="46" cy="48" r="3" fill="white"/>
+
+</svg>
+`;
+
+    const icon={
+      url:"data:image/svg+xml;charset=UTF-8,"+encodeURIComponent(svg),
+      scaledSize:new google.maps.Size(92,58),
+      anchor:new google.maps.Point(46,48),
+      labelOrigin:new google.maps.Point(46,25)
     };
 
-    const m = new google.maps.Marker({
-      position: { lat: p.lat, lng: p.lon },
+    const m=new google.maps.Marker({
+      position:{lat:p.lat,lng:p.lon},
       map,
       icon,
-      label: { text: labelText, ...labelStyle },
-      title: labelText,
-      zIndex: 1000 + i,
+      label:{text:p.name,...labelStyle}
     });
 
-    const info = new google.maps.InfoWindow({
-      content: `<b>${escapeHtml(labelText)}</b><br><span style="opacity:.8">${p.lat.toFixed(
-        7
-      )}, ${p.lon.toFixed(7)}</span>`,
-    });
-
-    m.addListener("click", () => {
-      info.open({ anchor: m, map });
-      openNav(p.lat, p.lon);
+    m.addListener("click",()=>{
+      openNav(p.lat,p.lon);
     });
 
     markers.push(m);
-  }
+
+  });
 
   fitToKml();
+
 }
 
-function fitToKml() {
-  if (!map || !points.length) return;
-  const bounds = new google.maps.LatLngBounds();
-  points.forEach((p) => bounds.extend({ lat: p.lat, lng: p.lon }));
-  map.fitBounds(bounds, 60);
+function fitToKml(){
+
+  if(!points.length) return;
+
+  const bounds=new google.maps.LatLngBounds();
+
+  points.forEach(p=>{
+    bounds.extend({lat:p.lat,lng:p.lon});
+  });
+
+  map.fitBounds(bounds,60);
+
 }
 
-// ---------- Geolocation ----------
-function ensureGeolocation() {
-  if (!navigator.geolocation) {
-    els.chipGps.textContent = "GPS: desteklenmiyor";
-    return;
-  }
-  if (watchId != null) return;
+function ensureGps(){
 
-  watchId = navigator.geolocation.watchPosition(
-    (pos) => {
-      const lat = pos.coords.latitude;
-      const lon = pos.coords.longitude;
-      const acc = pos.coords.accuracy;
-      lastPos = { lat, lon };
-      els.chipGps.textContent = `GPS: ±${Math.round(acc)} m`;
+  if(!navigator.geolocation) return;
 
-      if (!map) return;
-      const meLatLng = { lat, lng: lon };
+  if(watchId) return;
 
-      if (!meMarker) {
-        meMarker = new google.maps.Marker({
-          position: meLatLng,
-          map,
-          title: "Konumum",
-          icon: {
-            path: google.maps.SymbolPath.CIRCLE,
-            scale: 7,
-            fillColor: "#22c55e",
-            fillOpacity: 1,
-            strokeColor: "#ffffff",
-            strokeWeight: 2,
-          },
-          zIndex: 999999,
-        });
-      } else {
-        meMarker.setPosition(meLatLng);
-      }
+  watchId=navigator.geolocation.watchPosition(pos=>{
 
-      if (!meAccuracyCircle) {
-        meAccuracyCircle = new google.maps.Circle({
-          map,
-          center: meLatLng,
-          radius: acc,
-          fillColor: "#22c55e",
-          fillOpacity: 0.12,
-          strokeColor: "#22c55e",
-          strokeOpacity: 0.45,
-          strokeWeight: 1,
-        });
-      } else {
-        meAccuracyCircle.setCenter(meLatLng);
-        meAccuracyCircle.setRadius(acc);
-      }
-    },
-    () => {
-      els.chipGps.textContent = "GPS: izin yok";
-    },
-    { enableHighAccuracy: true, maximumAge: 3000, timeout: 12000 }
-  );
+    const lat=pos.coords.latitude;
+    const lon=pos.coords.longitude;
+
+    lastPos={lat,lon};
+
+    if(!map) return;
+
+    const svg=`
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">
+
+<line x1="12" y1="0" x2="12" y2="24" stroke="white" stroke-width="2"/>
+<line x1="0" y1="12" x2="24" y2="12" stroke="white" stroke-width="2"/>
+
+<circle cx="12" cy="12" r="4" fill="white"/>
+
+</svg>
+`;
+
+    const icon={
+      url:"data:image/svg+xml;charset=UTF-8,"+encodeURIComponent(svg),
+      scaledSize:new google.maps.Size(24,24),
+      anchor:new google.maps.Point(12,12)
+    };
+
+    if(!gpsMarker){
+
+      gpsMarker=new google.maps.Marker({
+        position:{lat,lng:lon},
+        map,
+        icon
+      });
+
+    }else{
+
+      gpsMarker.setPosition({lat,lng:lon});
+
+    }
+
+  },{
+    enableHighAccuracy:true
+  });
+
 }
 
-function panToMe() {
-  if (!map || !lastPos) return;
-  map.setZoom(Math.max(map.getZoom(), 17));
-  map.panTo({ lat: lastPos.lat, lng: lastPos.lon });
+function openNav(lat,lon){
+
+  const url=`https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`;
+
+  window.location.href=url;
+
 }
 
-// ---------- List ----------
-function renderList() {
-  const q = (els.search.value || "").trim().toLowerCase();
-  els.list.innerHTML = "";
+function renderList(){
 
-  const filtered = points
-    .map((p, i) => ({ ...p, i }))
-    .filter((x) => !q || x.name.toLowerCase().includes(q));
+  els.list.innerHTML="";
 
-  for (const p of filtered) {
-    const div = document.createElement("div");
-    div.className = "item";
-    div.innerHTML = `
-      <div>
-        <div class="itemTitle">${escapeHtml(p.name)}</div>
-        <div class="itemSub mono">${p.lat.toFixed(7)}, ${p.lon.toFixed(7)}</div>
-      </div>
-      <div class="badge">#${p.i + 1}</div>
-    `;
-    div.addEventListener("click", () => {
-      if (map) {
-        map.setZoom(Math.max(map.getZoom(), 17));
-        map.panTo({ lat: p.lat, lng: p.lon });
-      }
-      openNav(p.lat, p.lon);
-    });
+  points.forEach((p,i)=>{
+
+    const div=document.createElement("div");
+
+    div.className="item";
+
+    div.innerHTML=`
+<div>
+<div class="itemTitle">${p.name}</div>
+<div class="itemSub">${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}</div>
+</div>
+<div class="badge">${i+1}</div>
+`;
+
+    div.onclick=()=>{
+      map.setZoom(17);
+      map.panTo({lat:p.lat,lng:p.lon});
+      openNav(p.lat,p.lon);
+    };
+
     els.list.appendChild(div);
-  }
+
+  });
+
 }
 
-// ---------- CarPlay uyumlu nav ----------
-function navUrl(lat, lon) {
-  return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=driving`;
-}
+async function handleKmlFile(file){
 
-function openNav(lat, lon) {
-  const schemeUrl = `comgooglemaps://?daddr=${lat},${lon}&directionsmode=driving`;
-  const httpsUrl = navUrl(lat, lon);
+  const text=await file.text();
 
-  const t = Date.now();
-  window.location.href = schemeUrl;
-  setTimeout(() => {
-    if (Date.now() - t > 300) window.location.href = httpsUrl;
-  }, 450);
-}
-
-// ---------- Flow ----------
-async function handleKmlFile(file) {
-  hidePickError();
-  setStatus("KML okunuyor…");
-
-  const text = await file.text();
-  const parsed = parseKml(text);
-  if (!parsed.length) throw new Error("KML içinde nokta bulunamadı (Placemark/Point).");
-
-  points = parsed;
-  savePoints();
+  points=parseKml(text);
 
   initMap();
+
   setKmlMarkers();
-  ensureGeolocation();
 
-  els.chipCount.textContent = `${points.length} nokta`;
-  setStatus(`Hazır: ${points.length} nokta`);
+  ensureGps();
+
   renderList();
-  goMainScreen();
-  toast("Yüklendi");
+
+  els.chipCount.textContent=points.length+" nokta";
+
+  els.screenPick.style.display="none";
+  els.screenMain.style.display="flex";
+
 }
 
-function tryInitFromStorage() {
-  if (!window.__gmapsReady) return;
+els.fileInput.addEventListener("change",async e=>{
 
-  const has = loadPoints();
-  if (!has) {
-    setStatus("KML yükleyin");
-    return;
-  }
+  const f=e.target.files[0];
 
-  try {
-    initMap();
-    setKmlMarkers();
-    ensureGeolocation();
-    els.chipCount.textContent = `${points.length} nokta`;
-    setStatus(`Hazır: ${points.length} nokta`);
-    renderList();
-    goMainScreen();
-  } catch (err) {
-    showPickError(err.message || "Google Maps yüklenemedi.");
-    goPickScreen();
-  }
-}
+  if(!f) return;
 
-// ---------- Events ----------
-els.fileInput.addEventListener("change", async (e) => {
-  const f = e.target.files?.[0];
-  if (!f) return;
-  try {
-    await handleKmlFile(f);
-  } catch (err) {
-    showPickError(err.message || "Hata");
-  } finally {
-    els.fileInput.value = "";
-  }
+  await handleKmlFile(f);
+
 });
 
-els.btnReupload?.addEventListener("click", () => els.fileInput.click());
-els.btnFit?.addEventListener("click", () => fitToKml());
-els.btnMe?.addEventListener("click", () => panToMe());
-els.btnClear?.addEventListener("click", () => {
-  clearAll();
+els.btnFit.onclick=fitToKml;
+
+els.btnMe.onclick=()=>{
+
+  if(!lastPos) return;
+
+  map.setZoom(17);
+  map.panTo({lat:lastPos.lat,lng:lastPos.lon});
+
+};
+
+els.btnClear.onclick=()=>{
+
   clearMarkers();
-  if (meMarker) meMarker.setMap(null), (meMarker = null);
-  if (meAccuracyCircle) meAccuracyCircle.setMap(null), (meAccuracyCircle = null);
 
-  els.search.value = "";
-  els.list.innerHTML = "";
-  els.chipCount.textContent = "0 nokta";
-  els.chipGps.textContent = "GPS: -";
-  setStatus("KML yükleyin");
-  goPickScreen();
-});
+  if(gpsMarker) gpsMarker.setMap(null);
 
-els.search?.addEventListener("input", renderList);
+  points=[];
 
-// Service worker
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./sw.js").catch(() => {});
+  els.list.innerHTML="";
+
+  els.screenMain.style.display="none";
+  els.screenPick.style.display="flex";
+
+};
+
+function tryInitFromStorage(){
+
+  initMap();
+
 }
-
-setStatus("KML yükleyin");
-
