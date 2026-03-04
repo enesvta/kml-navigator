@@ -1,108 +1,105 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="tr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0f18" />
+  <title>KML Navigator</title>
 
-<title>KML Navigator</title>
-
-<link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#111111">
-
-<link rel="stylesheet" href="style.css">
-
-<link rel="apple-touch-icon" href="icons/logo.jpg">
-
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="apple-touch-icon" href="icons/logo.jpg" />
 </head>
 
 <body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">K</div>
+      <div>
+        <div class="brandTitle">KML Navigator</div>
+        <div class="brandSub" id="status">KML yükleyin</div>
+      </div>
+    </div>
 
-<header class="header">
-    <h1>KML Navigator</h1>
-    <p id="status">KML dosyası yükleyin</p>
-</header>
+    <div class="topActions">
+      <label class="btn ghost">
+        KML Seç
+        <input id="fileInput" type="file" accept=".kml,application/vnd.google-earth.kml+xml" hidden />
+      </label>
+      <button class="btn ghost" id="btnClear" type="button" disabled>Temizle</button>
+    </div>
+  </header>
 
-<main class="container">
+  <main class="container">
+    <section class="card tip">
+      <div class="tipTitle">Arazi kullanımı</div>
+      <div class="tipText">
+        iPhone: Safari → Paylaş → <b>Ana Ekrana Ekle</b>. Android: Chrome → <b>Install</b>.
+        Uygulama KML ve son noktayı cihazda hatırlar (offline açılır).
+      </div>
+    </section>
 
-<section class="card">
+    <section class="card" id="navCard" style="display:none;">
+      <div class="poiHeader">
+        <div class="poiName" id="poiName">-</div>
+        <div class="poiMeta">
+          <span class="pill" id="progress">-</span>
+          <span class="pill mono" id="poiCoords">-</span>
+        </div>
+      </div>
 
-<label class="uploadBtn">
-KML Dosyası Seç
-<input id="fileInput" type="file" accept=".kml" hidden>
-</label>
+      <div class="grid3">
+        <button class="btn big" id="btnPrev" type="button">◀ Önceki</button>
+        <button class="btn big primary" id="btnNav" type="button">Navigasyon</button>
+        <button class="btn big" id="btnNext" type="button">Sonraki ▶</button>
+      </div>
 
-<button id="btnClear" class="btn" disabled>Temizle</button>
+      <div class="grid3 secondaryRow">
+        <button class="btn" id="btnNearest" type="button">En Yakın</button>
+        <button class="btn" id="btnArrived" type="button">Ulaştım → Sonraki</button>
+        <button class="btn" id="btnMyLoc" type="button">Konum → Hedef</button>
+      </div>
 
-<p class="hint">
-Arazi kullanımında iPhone'da Safari → Paylaş → <b>Ana Ekrana Ekle</b>
-</p>
+      <div class="row between settingsRow">
+        <label class="switch">
+          <input type="checkbox" id="toggleAutoNav" />
+          <span class="slider"></span>
+          <span class="switchLabel">“Ulaştım” sonrası otomatik Navigasyon</span>
+        </label>
 
-</section>
+        <label class="switch">
+          <input type="checkbox" id="toggleWake" />
+          <span class="slider"></span>
+          <span class="switchLabel">Ekran kapanmasın (Wake Lock)</span>
+        </label>
+      </div>
 
+      <div class="row actionsRow">
+        <button class="btn ghost" id="btnOpenMap" type="button">Haritada Aç</button>
+        <button class="btn ghost" id="btnList" type="button">Liste</button>
+        <button class="btn ghost" id="btnResetIndex" type="button">Başa Al</button>
+      </div>
+    </section>
 
-<section id="navSection" class="card" style="display:none">
+    <section class="card" id="listCard" style="display:none;">
+      <div class="row between">
+        <div class="sectionTitle">Noktalar</div>
+        <button class="btn ghost" id="btnCloseList" type="button">Kapat</button>
+      </div>
 
-<h2 id="poiName">-</h2>
+      <input class="search" id="search" placeholder="Ara (isim)..." autocomplete="off" />
+      <div class="list" id="list"></div>
+    </section>
 
-<p id="poiCoords">-</p>
+    <section class="footerNote">
+      <div class="muted">
+        Not: Navigasyon için Google Maps rota hesaplar; veri zayıfsa Google Maps’te Offline Maps indirin.
+      </div>
+    </section>
+  </main>
 
-<div class="navButtons">
+  <div class="toast" id="toast" aria-live="polite" aria-atomic="true"></div>
 
-<button id="btnPrev" class="navBtn">◀ Önceki</button>
-
-<button id="btnNavigate" class="navBtn primary">Navigasyon</button>
-
-<button id="btnNext" class="navBtn">Sonraki ▶</button>
-
-</div>
-
-<div class="extraButtons">
-
-<button id="btnMap">Haritada Aç</button>
-
-<button id="btnList">Liste</button>
-
-<button id="btnReset">Başa Dön</button>
-
-</div>
-
-<p id="progress"></p>
-
-</section>
-
-
-
-<section id="listSection" class="card" style="display:none">
-
-<div class="listHeader">
-
-<h3>Noktalar</h3>
-
-<button id="btnCloseList">Kapat</button>
-
-</div>
-
-<input id="searchBox" placeholder="Nokta ara...">
-
-<div id="pointList"></div>
-
-</section>
-
-</main>
-
-
-<script src="app.js"></script>
-
-
-<script>
-
-if ('serviceWorker' in navigator) {
-
-navigator.serviceWorker.register('sw.js');
-
-}
-
-</script>
-
+  <script src="app.js"></script>
 </body>
 </html>
