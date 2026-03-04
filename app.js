@@ -200,7 +200,7 @@ function setKmlMarkers() {
         <!-- Label pill -->
         <g filter="url(#s)">
           <rect x="10" y="8" rx="999" ry="999" width="72" height="24"
-                fill="rgba(20,184,166,0.96)"/>
+                fill="rgba(20,184,166,0)"/>
           <rect x="10" y="8" rx="999" ry="999" width="72" height="24"
                 fill="none" stroke="rgba(255,255,255,0.22)"/>
         </g>
@@ -452,3 +452,4 @@ if ("serviceWorker" in navigator) {
 }
 
 setStatus("KML yükleyin");
+
