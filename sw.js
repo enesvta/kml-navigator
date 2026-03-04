@@ -1,4 +1,4 @@
-const CACHE = "kml-nav-v5";
+const CACHE = "kml-nav-v7";
 
 // Base path’i otomatik bulur: örn "/kml-navigator/"
 const BASE = new URL("./", self.location).pathname.replace(/\/$/, "");
@@ -32,5 +32,6 @@ self.addEventListener("fetch", (e) => {
     caches.match(e.request).then(cached => cached || fetch(e.request).catch(() => caches.match(`${BASE}/index.html`)))
   );
 });
+
 
 
