@@ -92,6 +92,7 @@ function parseKml(kmlText){
     const nameEl = pm.getElementsByTagName("name")[0];
     const name = normalizeName(nameEl?.textContent, `Point ${c+1}`);
 
+    // Önce Point içindeki coordinates, yoksa ilk coordinates
     const pointEl = pm.getElementsByTagName("Point")[0];
     let coordEl = null;
     if (pointEl) coordEl = pointEl.getElementsByTagName("coordinates")[0];
@@ -101,9 +102,11 @@ function parseKml(kmlText){
     const raw = (coordEl.textContent || "").trim();
     if (!raw) continue;
 
+    // Çoklu koordinat varsa ilkini al
     const first = raw.replace(/\n/g," ").split(/\s+/).filter(Boolean)[0];
     if (!first) continue;
 
+    // KML: lon,lat,alt
     const parts = first.split(",");
     if (parts.length < 2) continue;
 
@@ -242,11 +245,11 @@ function renderList(query){
     els.list.appendChild(div);
   }
 
-  // Kartın kendisine tıkla: seç + navigasyon
+  // Kart tıkla: seç + navigasyon
   els.list.querySelectorAll(".item").forEach(card => {
     card.addEventListener("click", (ev) => {
       const btn = ev.target.closest("button");
-      if (btn) return; // buton ayrıca handle edilecek
+      if (btn) return;
 
       const i = parseInt(card.dataset.index, 10);
       idx = i;
@@ -285,6 +288,7 @@ function renderAll(){
   els.countPill.textContent = `${points.length} nokta`;
   renderSelected();
   renderList(els.search.value || "");
+  saveState();
 }
 
 // ---------- Actions ----------
@@ -349,6 +353,8 @@ els.btnNavSelected.addEventListener("click", () => {
   const p = points[idx];
   openNav(p.lat, p.lon);
 });
+
+els.toggleAutoNav.addEventListener("change", saveState);
 
 // ---------- Service Worker ----------
 if ("serviceWorker" in navigator){
