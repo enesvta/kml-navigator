@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>KML Navigator</title>
+
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#111111">
+
+<link rel="stylesheet" href="style.css">
+
+<link rel="apple-touch-icon" href="icons/logo.jpg">
+
+</head>
+
+<body>
+
+<header class="header">
+    <h1>KML Navigator</h1>
+    <p id="status">KML dosyası yükleyin</p>
+</header>
+
+<main class="container">
+
+<section class="card">
+
+<label class="uploadBtn">
+KML Dosyası Seç
+<input id="fileInput" type="file" accept=".kml" hidden>
+</label>
+
+<button id="btnClear" class="btn" disabled>Temizle</button>
+
+<p class="hint">
+Arazi kullanımında iPhone'da Safari → Paylaş → <b>Ana Ekrana Ekle</b>
+</p>
+
+</section>
+
+
+<section id="navSection" class="card" style="display:none">
+
+<h2 id="poiName">-</h2>
+
+<p id="poiCoords">-</p>
+
+<div class="navButtons">
+
+<button id="btnPrev" class="navBtn">◀ Önceki</button>
+
+<button id="btnNavigate" class="navBtn primary">Navigasyon</button>
+
+<button id="btnNext" class="navBtn">Sonraki ▶</button>
+
+</div>
+
+<div class="extraButtons">
+
+<button id="btnMap">Haritada Aç</button>
+
+<button id="btnList">Liste</button>
+
+<button id="btnReset">Başa Dön</button>
+
+</div>
+
+<p id="progress"></p>
+
+</section>
+
+
+
+<section id="listSection" class="card" style="display:none">
+
+<div class="listHeader">
+
+<h3>Noktalar</h3>
+
+<button id="btnCloseList">Kapat</button>
+
+</div>
+
+<input id="searchBox" placeholder="Nokta ara...">
+
+<div id="pointList"></div>
+
+</section>
+
+</main>
+
+
+<script src="app.js"></script>
+
+
+<script>
+
+if ('serviceWorker' in navigator) {
+
+navigator.serviceWorker.register('sw.js');
+
+}
+
+</script>
+
+</body>
+</html>
