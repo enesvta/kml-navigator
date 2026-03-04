@@ -26,74 +26,56 @@
         KML Seç
         <input id="fileInput" type="file" accept=".kml,application/vnd.google-earth.kml+xml" hidden />
       </label>
+
       <button class="btn ghost" id="btnClear" type="button" disabled>Temizle</button>
     </div>
   </header>
 
   <main class="container">
-    <section class="card tip">
-      <div class="tipTitle">Arazi kullanımı</div>
-      <div class="tipText">
-        iPhone: Safari → Paylaş → <b>Ana Ekrana Ekle</b>. Android: Chrome → <b>Install</b>.
-        Uygulama KML ve son noktayı cihazda hatırlar (offline açılır).
-      </div>
-    </section>
 
-    <section class="card" id="navCard" style="display:none;">
-      <div class="poiHeader">
-        <div class="poiName" id="poiName">-</div>
-        <div class="poiMeta">
-          <span class="pill" id="progress">-</span>
-          <span class="pill mono" id="poiCoords">-</span>
+    <!-- Mini kontrol şeridi -->
+    <section class="card" id="controlsCard" style="display:none;">
+      <div class="row between">
+        <div class="pill" id="countPill">0 nokta</div>
+
+        <div class="row" style="gap:8px;">
+          <button class="btn small ghost" id="btnNearest" type="button">En Yakın</button>
+          <button class="btn small ghost" id="btnMyLoc" type="button">Konum→Hedef</button>
+          <button class="btn small ghost" id="btnListTop" type="button">Liste Başı</button>
         </div>
       </div>
 
-      <div class="grid3">
-        <button class="btn big" id="btnPrev" type="button">◀ Önceki</button>
-        <button class="btn big primary" id="btnNav" type="button">Navigasyon</button>
-        <button class="btn big" id="btnNext" type="button">Sonraki ▶</button>
-      </div>
-
-      <div class="grid3 secondaryRow">
-        <button class="btn" id="btnNearest" type="button">En Yakın</button>
-        <button class="btn" id="btnArrived" type="button">Ulaştım → Sonraki</button>
-        <button class="btn" id="btnMyLoc" type="button">Konum → Hedef</button>
-      </div>
-
-      <div class="row between settingsRow">
-        <label class="switch">
+      <div class="row between" style="margin-top:10px;">
+        <input class="search" id="search" placeholder="Ara (isim)..." autocomplete="off" />
+        <label class="switch" title="Ulaştım sonrası otomatik navigasyon">
           <input type="checkbox" id="toggleAutoNav" />
           <span class="slider"></span>
-          <span class="switchLabel">“Ulaştım” sonrası otomatik Navigasyon</span>
-        </label>
-
-        <label class="switch">
-          <input type="checkbox" id="toggleWake" />
-          <span class="slider"></span>
-          <span class="switchLabel">Ekran kapanmasın (Wake Lock)</span>
+          <span class="switchLabel">Auto Nav</span>
         </label>
       </div>
 
-      <div class="row actionsRow">
-        <button class="btn ghost" id="btnOpenMap" type="button">Haritada Aç</button>
-        <button class="btn ghost" id="btnList" type="button">Liste</button>
-        <button class="btn ghost" id="btnResetIndex" type="button">Başa Al</button>
+      <!-- Seçili nokta mini bilgi -->
+      <div class="row between" style="margin-top:10px;">
+        <div>
+          <div class="itemTitle" id="selectedName">-</div>
+          <div class="itemSub mono" id="selectedCoords">-</div>
+        </div>
+
+        <div class="row" style="gap:8px;">
+          <button class="btn small" id="btnArrived" type="button">Ulaştım</button>
+          <button class="btn small primary" id="btnNavSelected" type="button">Nav</button>
+        </div>
       </div>
     </section>
 
+    <!-- Liste -->
     <section class="card" id="listCard" style="display:none;">
-      <div class="row between">
-        <div class="sectionTitle">Noktalar</div>
-        <button class="btn ghost" id="btnCloseList" type="button">Kapat</button>
-      </div>
-
-      <input class="search" id="search" placeholder="Ara (isim)..." autocomplete="off" />
       <div class="list" id="list"></div>
     </section>
 
     <section class="footerNote">
       <div class="muted">
-        Not: Navigasyon için Google Maps rota hesaplar; veri zayıfsa Google Maps’te Offline Maps indirin.
+        Noktaya dokun → Navigasyon açılır. CarPlay bağlıysa Google Maps navigasyon CarPlay ekranında devam eder.
       </div>
     </section>
   </main>
