@@ -6,31 +6,34 @@
   <meta name="theme-color" content="#0b0f18" />
   <title>CENTRAL MUHENDISLIK</title>
 
-  <link rel="manifest" href="manifest.webmanifest?v=GE1" />
+  <link rel="manifest" href="manifest.webmanifest?v=CM1" />
   <link rel="apple-touch-icon" href="icons/logo.jpg" />
-  <link rel="stylesheet" href="style.css?v=GE1" />
+  <link rel="stylesheet" href="style.css?v=CM1" />
 </head>
 <body>
 
-<!-- EKRAN 1 -->
+<!-- EKRAN 1: KML SEÇ -->
 <main id="screenPick" class="screenPick">
   <div class="pickCard">
     <img class="pickLogo" src="icons/logo.jpg" alt="Logo" />
     <div class="pickTitle">CENTRAL MUHENDISLIK</div>
-    <div class="pickSub"></div>
+    <div class="pickSub">KML seç → Uydu + Konum + Noktalar</div>
 
     <label class="pickBtn">
       KML Seç
       <input id="fileInput" type="file" accept=".kml,application/vnd.google-earth.kml+xml" hidden />
     </label>
 
-    
+    <div class="pickHint">
+      iPhone: Safari → Paylaş → <b>Ana Ekrana Ekle</b><br/>
+      Android: Chrome → <b>Install</b>
+    </div>
 
     <div class="pickHint" id="pickError" style="display:none;"></div>
   </div>
 </main>
 
-<!-- EKRAN 2 -->
+<!-- EKRAN 2: HARİTA + LİSTE -->
 <div id="screenMain" class="screenMain" style="display:none;">
   <header class="topbar">
     <div class="brand">
@@ -65,7 +68,7 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="app.js?v=GE1"></script>
+<script src="app.js?v=CM1"></script>
 
 <!-- Google Maps JS API: KEY'i buraya yaz -->
 <script
@@ -76,6 +79,3 @@
 
 </body>
 </html>
-
-
-
