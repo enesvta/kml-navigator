@@ -26,14 +26,12 @@
         KML Seç
         <input id="fileInput" type="file" accept=".kml,application/vnd.google-earth.kml+xml" hidden />
       </label>
-
       <button class="btn ghost" id="btnClear" type="button" disabled>Temizle</button>
     </div>
   </header>
 
   <main class="container">
-
-    <!-- Mini kontrol şeridi -->
+    <!-- Kontroller + seçili nokta -->
     <section class="card" id="controlsCard" style="display:none;">
       <div class="row between">
         <div class="pill" id="countPill">0 nokta</div>
@@ -54,9 +52,8 @@
         </label>
       </div>
 
-      <!-- Seçili nokta mini bilgi -->
-      <div class="row between" style="margin-top:10px;">
-        <div>
+      <div class="row between selectedRow" style="margin-top:10px;">
+        <div class="selectedInfo">
           <div class="itemTitle" id="selectedName">-</div>
           <div class="itemSub mono" id="selectedCoords">-</div>
         </div>
