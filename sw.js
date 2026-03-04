@@ -1,4 +1,4 @@
-const CACHE = "kml-nav-v7";
+const CACHE = "kml-nav-FORCE-1";
 
 const BASE = new URL("./", self.location).pathname.replace(/\/$/, "");
 const ASSETS = [
@@ -30,3 +30,4 @@ self.addEventListener("fetch", (e) => {
     caches.match(e.request).then(cached => cached || fetch(e.request).catch(() => caches.match(`${BASE}/index.html`)))
   );
 });
+
