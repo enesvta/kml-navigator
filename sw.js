@@ -1,4 +1,4 @@
-const CACHE = "kml-nav-google-v8";
+const CACHE = "kml-central-v1";
 
 const BASE = new URL("./", self.location).pathname.replace(/\/$/, "");
 const ASSETS = [
@@ -10,8 +10,6 @@ const ASSETS = [
   `${BASE}/sw.js`,
   `${BASE}/icons/logo.jpg`,
 ];
-
-// Not: Google Maps JS ve tile’lar cache’e eklenmez (Google tarafı yönetir)
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
@@ -32,6 +30,3 @@ self.addEventListener("fetch", (e) => {
     caches.match(e.request).then(cached => cached || fetch(e.request).catch(() => caches.match(`${BASE}/index.html`)))
   );
 });
-
-
-
