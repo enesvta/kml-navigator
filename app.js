@@ -1,7 +1,6 @@
-// Global callback for Google Maps JS API
+// Google Maps callback
 window.onGoogleMapsLoaded = () => {
   window.__gmapsReady = true;
-  // Eğer daha önce KML yüklenmişse map init yapılır
   tryInitFromStorage();
 };
 
@@ -26,9 +25,10 @@ const els = {
   toast: document.getElementById("toast"),
 };
 
-let points = []; // {name, lat, lon}
+let points = [];
 let map = null;
 let markers = [];
+
 let meMarker = null;
 let meAccuracyCircle = null;
 let lastPos = null;
@@ -44,9 +44,6 @@ function toast(msg){
 
 function setStatus(t){
   if (els.status) els.status.textContent = t;
-  if (els.pickError && els.screenPick.style.display !== "none") {
-    // pick ekranda status görünmediği için hata alanı kullan
-  }
 }
 
 function showPickError(msg){
@@ -54,7 +51,6 @@ function showPickError(msg){
   els.pickError.style.display = "block";
   els.pickError.textContent = msg;
 }
-
 function hidePickError(){
   if (!els.pickError) return;
   els.pickError.style.display = "none";
@@ -146,7 +142,7 @@ function initMap(){
   map = new google.maps.Map(document.getElementById("map"), {
     center: { lat: 39.0, lng: 35.0 },
     zoom: 6,
-    mapTypeId: "satellite", // Google uydu
+    mapTypeId: "satellite",
     fullscreenControl: false,
     streetViewControl: false,
     mapTypeControl: false,
@@ -159,21 +155,66 @@ function clearMarkers(){
   markers = [];
 }
 
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, m => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+  }[m]));
+}
+
+// ---------- Modern “kutucuk” marker + KML adı ----------
 function setKmlMarkers(){
   initMap();
   clearMarkers();
 
+  const labelStyle = {
+    fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif",
+    fontSize: "12px",
+    fontWeight: "900",
+    color: "#0b1020",
+  };
+
   for (let i=0; i<points.length; i++){
     const p = points[i];
+    const labelText = (p.name || `${i+1}`).trim(); // N1 / P2 vs
+
+    // Modern bubble + pointer SVG
+    const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="118" height="56" viewBox="0 0 118 56">
+        <defs>
+          <filter id="s" x="-40%" y="-40%" width="180%" height="180%">
+            <feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="rgba(0,0,0,0.35)"/>
+          </filter>
+        </defs>
+
+        <g filter="url(#s)">
+          <rect x="8" y="6" rx="12" ry="12" width="102" height="30" fill="rgba(255,255,255,0.92)"/>
+          <rect x="8" y="6" rx="12" ry="12" width="102" height="30" fill="none" stroke="rgba(255,255,255,0.35)"/>
+          <path d="M59 36 L52 46 L66 36 Z" fill="rgba(255,255,255,0.92)"/>
+          <path d="M59 36 L52 46 L66 36 Z" fill="none" stroke="rgba(255,255,255,0.35)"/>
+        </g>
+
+        <circle cx="20" cy="21" r="5" fill="#3b82f6"/>
+      </svg>
+    `;
+
+    const icon = {
+      url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg),
+      scaledSize: new google.maps.Size(118, 56),
+      anchor: new google.maps.Point(59, 46),
+      labelOrigin: new google.maps.Point(66, 23),
+    };
+
     const m = new google.maps.Marker({
       position: { lat: p.lat, lng: p.lon },
       map,
-      title: p.name,
-      label: String(i+1),
+      icon,
+      label: { text: labelText, ...labelStyle },
+      title: labelText,
+      zIndex: 1000 + i,
     });
 
     const info = new google.maps.InfoWindow({
-      content: `<b>${escapeHtml(p.name)}</b><br><span style="opacity:.8">${p.lat.toFixed(7)}, ${p.lon.toFixed(7)}</span>`,
+      content: `<b>${escapeHtml(labelText)}</b><br><span style="opacity:.8">${p.lat.toFixed(7)}, ${p.lon.toFixed(7)}</span>`,
     });
 
     m.addListener("click", () => {
@@ -260,12 +301,6 @@ function panToMe(){
 }
 
 // ---------- List ----------
-function escapeHtml(s){
-  return String(s).replace(/[&<>"']/g, m => ({
-    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
-  }[m]));
-}
-
 function renderList(){
   const q = (els.search.value || "").trim().toLowerCase();
   els.list.innerHTML = "";
@@ -285,7 +320,6 @@ function renderList(){
       <div class="badge">#${p.i + 1}</div>
     `;
     div.addEventListener("click", () => {
-      // list click -> open nav
       if (map) {
         map.setZoom(Math.max(map.getZoom(), 17));
         map.panTo({ lat: p.lat, lng: p.lon });
@@ -296,13 +330,12 @@ function renderList(){
   }
 }
 
-// ---------- CarPlay compatible navigation ----------
+// ---------- CarPlay uyumlu nav (Google Maps app varsa) ----------
 function navUrl(lat, lon){
   return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=driving`;
 }
 
 function openNav(lat, lon){
-  // iOS’ta Google Maps yüklüyse comgooglemaps:// CarPlay’i daha temiz tetikler
   const schemeUrl = `comgooglemaps://?daddr=${lat},${lon}&directionsmode=driving`;
   const httpsUrl = navUrl(lat, lon);
 
@@ -337,11 +370,13 @@ async function handleKmlFile(file){
 }
 
 function tryInitFromStorage(){
-  // Google Maps hazır değilse bekle
   if (!window.__gmapsReady) return;
 
   const has = loadPoints();
-  if (!has) return;
+  if (!has) {
+    setStatus("KML yükleyin");
+    return;
+  }
 
   try{
     initMap();
@@ -375,7 +410,7 @@ els.btnFit?.addEventListener("click", () => fitToKml());
 els.btnMe?.addEventListener("click", () => panToMe());
 els.btnClear?.addEventListener("click", () => {
   clearAll();
-  if (markers.length) clearMarkers();
+  clearMarkers();
   if (meMarker) meMarker.setMap(null), meMarker = null;
   if (meAccuracyCircle) meAccuracyCircle.setMap(null), meAccuracyCircle = null;
   els.search.value = "";
@@ -385,7 +420,6 @@ els.btnClear?.addEventListener("click", () => {
   setStatus("KML yükleyin");
   goPickScreen();
 });
-
 els.search?.addEventListener("input", renderList);
 
 // Service worker
@@ -393,6 +427,4 @@ if ("serviceWorker" in navigator){
   navigator.serviceWorker.register("./sw.js").catch(()=>{});
 }
 
-// İlk ekran
 setStatus("KML yükleyin");
-// Storage varsa Google Maps hazır olduğunda init olacak
