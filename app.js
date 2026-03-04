@@ -34,61 +34,64 @@ let meAccuracyCircle = null;
 let lastPos = null;
 let watchId = null;
 
-function toast(msg){
+function toast(msg) {
   if (!els.toast) return;
   els.toast.textContent = msg;
   els.toast.style.opacity = "1";
   clearTimeout(window.__toastT);
-  window.__toastT = setTimeout(()=> els.toast.style.opacity = "0", 1600);
+  window.__toastT = setTimeout(() => (els.toast.style.opacity = "0"), 1600);
 }
 
-function setStatus(t){
+function setStatus(t) {
   if (els.status) els.status.textContent = t;
 }
 
-function showPickError(msg){
+function showPickError(msg) {
   if (!els.pickError) return;
   els.pickError.style.display = "block";
   els.pickError.textContent = msg;
 }
-function hidePickError(){
+function hidePickError() {
   if (!els.pickError) return;
   els.pickError.style.display = "none";
   els.pickError.textContent = "";
 }
 
-function goMainScreen(){
+function goMainScreen() {
   els.screenPick.style.display = "none";
   els.screenMain.style.display = "flex";
 }
-function goPickScreen(){
+function goPickScreen() {
   els.screenMain.style.display = "none";
   els.screenPick.style.display = "flex";
 }
 
 // ---------- Storage ----------
-function savePoints(){
+function savePoints() {
   localStorage.setItem("kmlnav_points", JSON.stringify(points));
 }
-function loadPoints(){
-  try{
+function loadPoints() {
+  try {
     const p = JSON.parse(localStorage.getItem("kmlnav_points") || "[]");
-    if (Array.isArray(p) && p.length) { points = p; return true; }
-  }catch(_){}
+    if (Array.isArray(p) && p.length) {
+      points = p;
+      return true;
+    }
+  } catch (_) {}
   return false;
 }
-function clearAll(){
+function clearAll() {
   localStorage.removeItem("kmlnav_points");
   points = [];
 }
 
 // ---------- KML parse ----------
-function normalizeName(name, fallback){
+function normalizeName(name, fallback) {
   const t = (name || "").trim();
   return t ? t : fallback;
 }
 
-function parseKml(kmlText){
+function parseKml(kmlText) {
   const parser = new DOMParser();
   const xml = parser.parseFromString(kmlText, "application/xml");
   const parseError = xml.querySelector("parsererror");
@@ -98,9 +101,9 @@ function parseKml(kmlText){
   const out = [];
   let c = 0;
 
-  for (const pm of placemarks){
+  for (const pm of placemarks) {
     const nameEl = pm.getElementsByTagName("name")[0];
-    const name = normalizeName(nameEl?.textContent, `Point ${c+1}`);
+    const name = normalizeName(nameEl?.textContent, `Point ${c + 1}`);
 
     const pointEl = pm.getElementsByTagName("Point")[0];
     let coordEl = null;
@@ -111,7 +114,10 @@ function parseKml(kmlText){
     const raw = (coordEl.textContent || "").trim();
     if (!raw) continue;
 
-    const first = raw.replace(/\n/g," ").split(/\s+/).filter(Boolean)[0];
+    const first = raw
+      .replace(/\n/g, " ")
+      .split(/\s+/)
+      .filter(Boolean)[0];
     if (!first) continue;
 
     const parts = first.split(",");
@@ -129,13 +135,13 @@ function parseKml(kmlText){
 }
 
 // ---------- Google Maps init ----------
-function ensureGMaps(){
+function ensureGMaps() {
   if (!window.__gmapsReady || typeof google === "undefined" || !google.maps) {
     throw new Error("Google Maps yüklenmedi. API key / billing / internet kontrol edin.");
   }
 }
 
-function initMap(){
+function initMap() {
   ensureGMaps();
   if (map) return;
 
@@ -150,58 +156,60 @@ function initMap(){
   });
 }
 
-function clearMarkers(){
+function clearMarkers() {
   for (const m of markers) m.setMap(null);
   markers = [];
 }
 
-function escapeHtml(s){
-  return String(s).replace(/[&<>"']/g, m => ({
-    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
-  }[m]));
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (m) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;",
+  })[m]);
 }
 
-// ---------- Modern “kutucuk” marker + KML adı ----------
-function setKmlMarkers(){
+// ---------- Minimalist “pill” marker + KML adı ----------
+function setKmlMarkers() {
   initMap();
   clearMarkers();
 
   const labelStyle = {
-    fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif",
+    fontFamily:
+      "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif",
     fontSize: "11px",
     fontWeight: "900",
-    color: "#0b1020",
+    color: "#ffffff",
   };
 
-  for (let i=0; i<points.length; i++){
+  for (let i = 0; i < points.length; i++) {
     const p = points[i];
-    const labelText = (p.name || `${i+1}`).trim(); // N1 / P2 vs
+    const labelText = (p.name || `${i + 1}`).trim();
 
-    // Modern bubble + pointer SVG
+    // Minimalist pill (tek parça)
     const svg = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="92" height="44" viewBox="0 0 92 44">
+      <svg xmlns="http://www.w3.org/2000/svg" width="78" height="34" viewBox="0 0 78 34">
         <defs>
           <filter id="s" x="-40%" y="-40%" width="180%" height="180%">
             <feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="rgba(0,0,0,0.35)"/>
           </filter>
         </defs>
-
         <g filter="url(#s)">
-          <rect x="8" y="6" rx="12" ry="12" width="102" height="30" fill="rgba(255,255,255,0.92)"/>
-          <rect x="8" y="6" rx="12" ry="12" width="102" height="30" fill="none" stroke="rgba(255,255,255,0.35)"/>
-          <path d="M59 36 L52 46 L66 36 Z" fill="rgba(255,255,255,0.92)"/>
-          <path d="M59 36 L52 46 L66 36 Z" fill="none" stroke="rgba(255,255,255,0.35)"/>
+          <rect x="6" y="6" rx="999" ry="999" width="66" height="22"
+                fill="rgba(37,99,235,0.95)"/>
+          <rect x="6" y="6" rx="999" ry="999" width="66" height="22"
+                fill="none" stroke="rgba(255,255,255,0.18)"/>
         </g>
-
-        <circle cx="20" cy="21" r="5" fill="#3b82f6"/>
       </svg>
     `;
 
     const icon = {
       url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg),
-      scaledSize: new google.maps.Size(92, 44),
-      anchor: new google.maps.Point(46, 36),
-      labelOrigin: new google.maps.Point(52, 18),
+      scaledSize: new google.maps.Size(78, 34),
+      anchor: new google.maps.Point(39, 17), // merkez
+      labelOrigin: new google.maps.Point(39, 21), // yazı ortası
     };
 
     const m = new google.maps.Marker({
@@ -214,7 +222,9 @@ function setKmlMarkers(){
     });
 
     const info = new google.maps.InfoWindow({
-      content: `<b>${escapeHtml(labelText)}</b><br><span style="opacity:.8">${p.lat.toFixed(7)}, ${p.lon.toFixed(7)}</span>`,
+      content: `<b>${escapeHtml(labelText)}</b><br><span style="opacity:.8">${p.lat.toFixed(
+        7
+      )}, ${p.lon.toFixed(7)}</span>`,
     });
 
     m.addListener("click", () => {
@@ -228,15 +238,15 @@ function setKmlMarkers(){
   fitToKml();
 }
 
-function fitToKml(){
+function fitToKml() {
   if (!map || !points.length) return;
   const bounds = new google.maps.LatLngBounds();
-  points.forEach(p => bounds.extend({ lat: p.lat, lng: p.lon }));
+  points.forEach((p) => bounds.extend({ lat: p.lat, lng: p.lon }));
   map.fitBounds(bounds, 60);
 }
 
 // ---------- Geolocation ----------
-function ensureGeolocation(){
+function ensureGeolocation() {
   if (!navigator.geolocation) {
     els.chipGps.textContent = "GPS: desteklenmiyor";
     return;
@@ -252,10 +262,9 @@ function ensureGeolocation(){
       els.chipGps.textContent = `GPS: ±${Math.round(acc)} m`;
 
       if (!map) return;
-
       const meLatLng = { lat, lng: lon };
 
-      if (!meMarker){
+      if (!meMarker) {
         meMarker = new google.maps.Marker({
           position: meLatLng,
           map,
@@ -267,13 +276,14 @@ function ensureGeolocation(){
             fillOpacity: 1,
             strokeColor: "#ffffff",
             strokeWeight: 2,
-          }
+          },
+          zIndex: 999999,
         });
       } else {
         meMarker.setPosition(meLatLng);
       }
 
-      if (!meAccuracyCircle){
+      if (!meAccuracyCircle) {
         meAccuracyCircle = new google.maps.Circle({
           map,
           center: meLatLng,
@@ -289,27 +299,29 @@ function ensureGeolocation(){
         meAccuracyCircle.setRadius(acc);
       }
     },
-    () => { els.chipGps.textContent = "GPS: izin yok"; },
+    () => {
+      els.chipGps.textContent = "GPS: izin yok";
+    },
     { enableHighAccuracy: true, maximumAge: 3000, timeout: 12000 }
   );
 }
 
-function panToMe(){
+function panToMe() {
   if (!map || !lastPos) return;
   map.setZoom(Math.max(map.getZoom(), 17));
   map.panTo({ lat: lastPos.lat, lng: lastPos.lon });
 }
 
 // ---------- List ----------
-function renderList(){
+function renderList() {
   const q = (els.search.value || "").trim().toLowerCase();
   els.list.innerHTML = "";
 
   const filtered = points
-    .map((p, i) => ({...p, i}))
-    .filter(x => !q || x.name.toLowerCase().includes(q));
+    .map((p, i) => ({ ...p, i }))
+    .filter((x) => !q || x.name.toLowerCase().includes(q));
 
-  for (const p of filtered){
+  for (const p of filtered) {
     const div = document.createElement("div");
     div.className = "item";
     div.innerHTML = `
@@ -330,12 +342,12 @@ function renderList(){
   }
 }
 
-// ---------- CarPlay uyumlu nav (Google Maps app varsa) ----------
-function navUrl(lat, lon){
+// ---------- CarPlay uyumlu nav ----------
+function navUrl(lat, lon) {
   return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=driving`;
 }
 
-function openNav(lat, lon){
+function openNav(lat, lon) {
   const schemeUrl = `comgooglemaps://?daddr=${lat},${lon}&directionsmode=driving`;
   const httpsUrl = navUrl(lat, lon);
 
@@ -347,7 +359,7 @@ function openNav(lat, lon){
 }
 
 // ---------- Flow ----------
-async function handleKmlFile(file){
+async function handleKmlFile(file) {
   hidePickError();
   setStatus("KML okunuyor…");
 
@@ -369,7 +381,7 @@ async function handleKmlFile(file){
   toast("Yüklendi");
 }
 
-function tryInitFromStorage(){
+function tryInitFromStorage() {
   if (!window.__gmapsReady) return;
 
   const has = loadPoints();
@@ -378,7 +390,7 @@ function tryInitFromStorage(){
     return;
   }
 
-  try{
+  try {
     initMap();
     setKmlMarkers();
     ensureGeolocation();
@@ -386,7 +398,7 @@ function tryInitFromStorage(){
     setStatus(`Hazır: ${points.length} nokta`);
     renderList();
     goMainScreen();
-  }catch(err){
+  } catch (err) {
     showPickError(err.message || "Google Maps yüklenemedi.");
     goPickScreen();
   }
@@ -396,11 +408,11 @@ function tryInitFromStorage(){
 els.fileInput.addEventListener("change", async (e) => {
   const f = e.target.files?.[0];
   if (!f) return;
-  try{
+  try {
     await handleKmlFile(f);
-  }catch(err){
+  } catch (err) {
     showPickError(err.message || "Hata");
-  }finally{
+  } finally {
     els.fileInput.value = "";
   }
 });
@@ -411,8 +423,9 @@ els.btnMe?.addEventListener("click", () => panToMe());
 els.btnClear?.addEventListener("click", () => {
   clearAll();
   clearMarkers();
-  if (meMarker) meMarker.setMap(null), meMarker = null;
-  if (meAccuracyCircle) meAccuracyCircle.setMap(null), meAccuracyCircle = null;
+  if (meMarker) meMarker.setMap(null), (meMarker = null);
+  if (meAccuracyCircle) meAccuracyCircle.setMap(null), (meAccuracyCircle = null);
+
   els.search.value = "";
   els.list.innerHTML = "";
   els.chipCount.textContent = "0 nokta";
@@ -420,12 +433,12 @@ els.btnClear?.addEventListener("click", () => {
   setStatus("KML yükleyin");
   goPickScreen();
 });
+
 els.search?.addEventListener("input", renderList);
 
 // Service worker
-if ("serviceWorker" in navigator){
-  navigator.serviceWorker.register("./sw.js").catch(()=>{});
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("./sw.js").catch(() => {});
 }
 
 setStatus("KML yükleyin");
-
