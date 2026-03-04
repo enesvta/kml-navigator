@@ -7,78 +7,70 @@
   <title>KML Navigator</title>
 
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="stylesheet" href="style.css" />
   <link rel="apple-touch-icon" href="icons/logo.jpg" />
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </head>
 
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <div class="logo" aria-hidden="true">K</div>
-      <div>
-        <div class="brandTitle">KML Navigator</div>
-        <div class="brandSub" id="status">KML yükleyin</div>
-      </div>
-    </div>
+  <!-- SCREEN 1: KML seç -->
+  <main id="screenPick" class="screenPick">
+    <div class="pickCard">
+      <img class="pickLogo" src="icons/logo.jpg" alt="Logo" />
+      <div class="pickTitle">KML Navigator</div>
+      <div class="pickSub">KML yükleyin → Harita + Liste</div>
 
-    <div class="topActions">
-      <label class="btn ghost">
+      <label class="pickBtn">
         KML Seç
         <input id="fileInput" type="file" accept=".kml,application/vnd.google-earth.kml+xml" hidden />
       </label>
-      <button class="btn ghost" id="btnClear" type="button" disabled>Temizle</button>
+
+      <div class="pickHint">
+        iPhone: Safari → Paylaş → <b>Ana Ekrana Ekle</b><br/>
+        Android: Chrome → <b>Install</b>
+      </div>
     </div>
-  </header>
-
-  <main class="container">
-    <!-- Kontroller + seçili nokta -->
-    <section class="card" id="controlsCard" style="display:none;">
-      <div class="row between">
-        <div class="pill" id="countPill">0 nokta</div>
-
-        <div class="row" style="gap:8px;">
-          <button class="btn small ghost" id="btnNearest" type="button">En Yakın</button>
-          <button class="btn small ghost" id="btnMyLoc" type="button">Konum→Hedef</button>
-          <button class="btn small ghost" id="btnListTop" type="button">Liste Başı</button>
-        </div>
-      </div>
-
-      <div class="row between" style="margin-top:10px;">
-        <input class="search" id="search" placeholder="Ara (isim)..." autocomplete="off" />
-        <label class="switch" title="Ulaştım sonrası otomatik navigasyon">
-          <input type="checkbox" id="toggleAutoNav" />
-          <span class="slider"></span>
-          <span class="switchLabel">Auto Nav</span>
-        </label>
-      </div>
-
-      <div class="row between selectedRow" style="margin-top:10px;">
-        <div class="selectedInfo">
-          <div class="itemTitle" id="selectedName">-</div>
-          <div class="itemSub mono" id="selectedCoords">-</div>
-        </div>
-
-        <div class="row" style="gap:8px;">
-          <button class="btn small" id="btnArrived" type="button">Ulaştım</button>
-          <button class="btn small primary" id="btnNavSelected" type="button">Nav</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- Liste -->
-    <section class="card" id="listCard" style="display:none;">
-      <div class="list" id="list"></div>
-    </section>
-
-    <section class="footerNote">
-      <div class="muted">
-        Noktaya dokun → Navigasyon açılır. CarPlay bağlıysa Google Maps navigasyon CarPlay ekranında devam eder.
-      </div>
-    </section>
   </main>
 
-  <div class="toast" id="toast" aria-live="polite" aria-atomic="true"></div>
+  <!-- SCREEN 2: Harita + Liste -->
+  <div id="screenMain" class="screenMain" style="display:none;">
+    <header class="topbar">
+      <div class="brand">
+        <img class="brandLogo" src="icons/logo.jpg" alt="Logo" />
+        <div>
+          <div class="brandTitle">KML Navigator</div>
+          <div class="brandSub" id="status">-</div>
+        </div>
+      </div>
 
+      <div class="actions">
+        <button class="btn ghost" id="btnReupload" type="button">KML Değiştir</button>
+        <button class="btn ghost" id="btnFit" type="button">Kanavaya Yaklaş</button>
+        <button class="btn ghost" id="btnMe" type="button">Konumum</button>
+        <button class="btn ghost" id="btnClear" type="button">Temizle</button>
+      </div>
+    </header>
+
+    <section class="mapWrap">
+      <div id="map" class="map"></div>
+      <div class="mapChips">
+        <span class="chip" id="chipCount">0 nokta</span>
+        <span class="chip" id="chipGps">GPS: -</span>
+      </div>
+    </section>
+
+    <section class="listPanel">
+      <div class="listTop">
+        <input id="search" class="search" placeholder="Nokta ara..." autocomplete="off" />
+      </div>
+      <div id="list" class="list"></div>
+    </section>
+  </div>
+
+  <!-- Leaflet -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
