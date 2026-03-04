@@ -1,103 +1,398 @@
-const fileInput = document.getElementById("fileInput");
-const screenPick = document.getElementById("screenPick");
-const screenMain = document.getElementById("screenMain");
-const list = document.getElementById("list");
-const chipCount = document.getElementById("chipCount");
-const chipGps = document.getElementById("chipGps");
+// Global callback for Google Maps JS API
+window.onGoogleMapsLoaded = () => {
+  window.__gmapsReady = true;
+  // Eğer daha önce KML yüklenmişse map init yapılır
+  tryInitFromStorage();
+};
 
-let map;
-let markers=[];
-let points=[];
+const els = {
+  screenPick: document.getElementById("screenPick"),
+  screenMain: document.getElementById("screenMain"),
+  fileInput: document.getElementById("fileInput"),
+  pickError: document.getElementById("pickError"),
 
-fileInput.addEventListener("change", async e=>{
-const file=e.target.files[0];
-if(!file)return;
+  status: document.getElementById("status"),
+  chipCount: document.getElementById("chipCount"),
+  chipGps: document.getElementById("chipGps"),
 
-const text=await file.text();
-points=parseKml(text);
+  btnReupload: document.getElementById("btnReupload"),
+  btnFit: document.getElementById("btnFit"),
+  btnMe: document.getElementById("btnMe"),
+  btnClear: document.getElementById("btnClear"),
 
-screenPick.style.display="none";
-screenMain.style.display="block";
+  search: document.getElementById("search"),
+  list: document.getElementById("list"),
 
-initMap();
-renderPoints();
-renderList();
-});
+  toast: document.getElementById("toast"),
+};
+
+let points = []; // {name, lat, lon}
+let map = null;
+let markers = [];
+let meMarker = null;
+let meAccuracyCircle = null;
+let lastPos = null;
+let watchId = null;
+
+function toast(msg){
+  if (!els.toast) return;
+  els.toast.textContent = msg;
+  els.toast.style.opacity = "1";
+  clearTimeout(window.__toastT);
+  window.__toastT = setTimeout(()=> els.toast.style.opacity = "0", 1600);
+}
+
+function setStatus(t){
+  if (els.status) els.status.textContent = t;
+  if (els.pickError && els.screenPick.style.display !== "none") {
+    // pick ekranda status görünmediği için hata alanı kullan
+  }
+}
+
+function showPickError(msg){
+  if (!els.pickError) return;
+  els.pickError.style.display = "block";
+  els.pickError.textContent = msg;
+}
+
+function hidePickError(){
+  if (!els.pickError) return;
+  els.pickError.style.display = "none";
+  els.pickError.textContent = "";
+}
+
+function goMainScreen(){
+  els.screenPick.style.display = "none";
+  els.screenMain.style.display = "flex";
+}
+function goPickScreen(){
+  els.screenMain.style.display = "none";
+  els.screenPick.style.display = "flex";
+}
+
+// ---------- Storage ----------
+function savePoints(){
+  localStorage.setItem("kmlnav_points", JSON.stringify(points));
+}
+function loadPoints(){
+  try{
+    const p = JSON.parse(localStorage.getItem("kmlnav_points") || "[]");
+    if (Array.isArray(p) && p.length) { points = p; return true; }
+  }catch(_){}
+  return false;
+}
+function clearAll(){
+  localStorage.removeItem("kmlnav_points");
+  points = [];
+}
+
+// ---------- KML parse ----------
+function normalizeName(name, fallback){
+  const t = (name || "").trim();
+  return t ? t : fallback;
+}
+
+function parseKml(kmlText){
+  const parser = new DOMParser();
+  const xml = parser.parseFromString(kmlText, "application/xml");
+  const parseError = xml.querySelector("parsererror");
+  if (parseError) throw new Error("KML parse edilemedi (dosya bozuk olabilir).");
+
+  const placemarks = Array.from(xml.getElementsByTagName("Placemark"));
+  const out = [];
+  let c = 0;
+
+  for (const pm of placemarks){
+    const nameEl = pm.getElementsByTagName("name")[0];
+    const name = normalizeName(nameEl?.textContent, `Point ${c+1}`);
+
+    const pointEl = pm.getElementsByTagName("Point")[0];
+    let coordEl = null;
+    if (pointEl) coordEl = pointEl.getElementsByTagName("coordinates")[0];
+    if (!coordEl) coordEl = pm.getElementsByTagName("coordinates")[0];
+    if (!coordEl) continue;
+
+    const raw = (coordEl.textContent || "").trim();
+    if (!raw) continue;
+
+    const first = raw.replace(/\n/g," ").split(/\s+/).filter(Boolean)[0];
+    if (!first) continue;
+
+    const parts = first.split(",");
+    if (parts.length < 2) continue;
+
+    const lon = Number(parts[0]);
+    const lat = Number(parts[1]);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+
+    out.push({ name, lat, lon });
+    c++;
+  }
+
+  return out;
+}
+
+// ---------- Google Maps init ----------
+function ensureGMaps(){
+  if (!window.__gmapsReady || typeof google === "undefined" || !google.maps) {
+    throw new Error("Google Maps yüklenmedi. API key / billing / internet kontrol edin.");
+  }
+}
 
 function initMap(){
-map=L.map("map").setView([39,35],6);
+  ensureGMaps();
+  if (map) return;
 
-L.tileLayer(
-"https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-{maxZoom:19}
-).addTo(map);
-
-navigator.geolocation.watchPosition(pos=>{
-const lat=pos.coords.latitude;
-const lon=pos.coords.longitude;
-
-chipGps.innerText="GPS ±"+Math.round(pos.coords.accuracy)+"m";
-
-L.circleMarker([lat,lon],{radius:6,color:"white",fillColor:"lime"}).addTo(map);
-
-});
+  map = new google.maps.Map(document.getElementById("map"), {
+    center: { lat: 39.0, lng: 35.0 },
+    zoom: 6,
+    mapTypeId: "satellite", // Google uydu
+    fullscreenControl: false,
+    streetViewControl: false,
+    mapTypeControl: false,
+    clickableIcons: false,
+  });
 }
 
-function parseKml(text){
-const parser=new DOMParser();
-const xml=parser.parseFromString(text,"text/xml");
-
-const placemarks=[...xml.getElementsByTagName("Placemark")];
-const pts=[];
-
-placemarks.forEach((pm,i)=>{
-const name=pm.getElementsByTagName("name")[0]?.textContent||"Point "+(i+1);
-const coord=pm.getElementsByTagName("coordinates")[0]?.textContent.trim();
-
-if(!coord)return;
-
-const parts=coord.split(",");
-pts.push({
-name,
-lat:parseFloat(parts[1]),
-lon:parseFloat(parts[0])
-});
-});
-
-return pts;
+function clearMarkers(){
+  for (const m of markers) m.setMap(null);
+  markers = [];
 }
 
-function renderPoints(){
-markers.forEach(m=>map.removeLayer(m));
-markers=[];
+function setKmlMarkers(){
+  initMap();
+  clearMarkers();
 
-points.forEach(p=>{
-const m=L.marker([p.lat,p.lon]).addTo(map);
-m.on("click",()=>navigate(p));
-markers.push(m);
-});
+  for (let i=0; i<points.length; i++){
+    const p = points[i];
+    const m = new google.maps.Marker({
+      position: { lat: p.lat, lng: p.lon },
+      map,
+      title: p.name,
+      label: String(i+1),
+    });
 
-chipCount.innerText=points.length+" nokta";
+    const info = new google.maps.InfoWindow({
+      content: `<b>${escapeHtml(p.name)}</b><br><span style="opacity:.8">${p.lat.toFixed(7)}, ${p.lon.toFixed(7)}</span>`,
+    });
 
-const bounds=L.latLngBounds(points.map(p=>[p.lat,p.lon]));
-map.fitBounds(bounds);
+    m.addListener("click", () => {
+      info.open({ anchor: m, map });
+      openNav(p.lat, p.lon);
+    });
+
+    markers.push(m);
+  }
+
+  fitToKml();
+}
+
+function fitToKml(){
+  if (!map || !points.length) return;
+  const bounds = new google.maps.LatLngBounds();
+  points.forEach(p => bounds.extend({ lat: p.lat, lng: p.lon }));
+  map.fitBounds(bounds, 60);
+}
+
+// ---------- Geolocation ----------
+function ensureGeolocation(){
+  if (!navigator.geolocation) {
+    els.chipGps.textContent = "GPS: desteklenmiyor";
+    return;
+  }
+  if (watchId != null) return;
+
+  watchId = navigator.geolocation.watchPosition(
+    (pos) => {
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+      const acc = pos.coords.accuracy;
+      lastPos = { lat, lon };
+      els.chipGps.textContent = `GPS: ±${Math.round(acc)} m`;
+
+      if (!map) return;
+
+      const meLatLng = { lat, lng: lon };
+
+      if (!meMarker){
+        meMarker = new google.maps.Marker({
+          position: meLatLng,
+          map,
+          title: "Konumum",
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 7,
+            fillColor: "#22c55e",
+            fillOpacity: 1,
+            strokeColor: "#ffffff",
+            strokeWeight: 2,
+          }
+        });
+      } else {
+        meMarker.setPosition(meLatLng);
+      }
+
+      if (!meAccuracyCircle){
+        meAccuracyCircle = new google.maps.Circle({
+          map,
+          center: meLatLng,
+          radius: acc,
+          fillColor: "#22c55e",
+          fillOpacity: 0.12,
+          strokeColor: "#22c55e",
+          strokeOpacity: 0.45,
+          strokeWeight: 1,
+        });
+      } else {
+        meAccuracyCircle.setCenter(meLatLng);
+        meAccuracyCircle.setRadius(acc);
+      }
+    },
+    () => { els.chipGps.textContent = "GPS: izin yok"; },
+    { enableHighAccuracy: true, maximumAge: 3000, timeout: 12000 }
+  );
+}
+
+function panToMe(){
+  if (!map || !lastPos) return;
+  map.setZoom(Math.max(map.getZoom(), 17));
+  map.panTo({ lat: lastPos.lat, lng: lastPos.lon });
+}
+
+// ---------- List ----------
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, m => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+  }[m]));
 }
 
 function renderList(){
-list.innerHTML="";
+  const q = (els.search.value || "").trim().toLowerCase();
+  els.list.innerHTML = "";
 
-points.forEach((p,i)=>{
-const div=document.createElement("div");
-div.className="item";
-div.innerText=p.name;
+  const filtered = points
+    .map((p, i) => ({...p, i}))
+    .filter(x => !q || x.name.toLowerCase().includes(q));
 
-div.onclick=()=>navigate(p);
+  for (const p of filtered){
+    const div = document.createElement("div");
+    div.className = "item";
+    div.innerHTML = `
+      <div>
+        <div class="itemTitle">${escapeHtml(p.name)}</div>
+        <div class="itemSub mono">${p.lat.toFixed(7)}, ${p.lon.toFixed(7)}</div>
+      </div>
+      <div class="badge">#${p.i + 1}</div>
+    `;
+    div.addEventListener("click", () => {
+      // list click -> open nav
+      if (map) {
+        map.setZoom(Math.max(map.getZoom(), 17));
+        map.panTo({ lat: p.lat, lng: p.lon });
+      }
+      openNav(p.lat, p.lon);
+    });
+    els.list.appendChild(div);
+  }
+}
 
-list.appendChild(div);
+// ---------- CarPlay compatible navigation ----------
+function navUrl(lat, lon){
+  return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=driving`;
+}
+
+function openNav(lat, lon){
+  // iOS’ta Google Maps yüklüyse comgooglemaps:// CarPlay’i daha temiz tetikler
+  const schemeUrl = `comgooglemaps://?daddr=${lat},${lon}&directionsmode=driving`;
+  const httpsUrl = navUrl(lat, lon);
+
+  const t = Date.now();
+  window.location.href = schemeUrl;
+  setTimeout(() => {
+    if (Date.now() - t > 300) window.location.href = httpsUrl;
+  }, 450);
+}
+
+// ---------- Flow ----------
+async function handleKmlFile(file){
+  hidePickError();
+  setStatus("KML okunuyor…");
+
+  const text = await file.text();
+  const parsed = parseKml(text);
+  if (!parsed.length) throw new Error("KML içinde nokta bulunamadı (Placemark/Point).");
+
+  points = parsed;
+  savePoints();
+
+  initMap();
+  setKmlMarkers();
+  ensureGeolocation();
+
+  els.chipCount.textContent = `${points.length} nokta`;
+  setStatus(`Hazır: ${points.length} nokta`);
+  renderList();
+  goMainScreen();
+  toast("Yüklendi");
+}
+
+function tryInitFromStorage(){
+  // Google Maps hazır değilse bekle
+  if (!window.__gmapsReady) return;
+
+  const has = loadPoints();
+  if (!has) return;
+
+  try{
+    initMap();
+    setKmlMarkers();
+    ensureGeolocation();
+    els.chipCount.textContent = `${points.length} nokta`;
+    setStatus(`Hazır: ${points.length} nokta`);
+    renderList();
+    goMainScreen();
+  }catch(err){
+    showPickError(err.message || "Google Maps yüklenemedi.");
+    goPickScreen();
+  }
+}
+
+// ---------- Events ----------
+els.fileInput.addEventListener("change", async (e) => {
+  const f = e.target.files?.[0];
+  if (!f) return;
+  try{
+    await handleKmlFile(f);
+  }catch(err){
+    showPickError(err.message || "Hata");
+  }finally{
+    els.fileInput.value = "";
+  }
 });
+
+els.btnReupload?.addEventListener("click", () => els.fileInput.click());
+els.btnFit?.addEventListener("click", () => fitToKml());
+els.btnMe?.addEventListener("click", () => panToMe());
+els.btnClear?.addEventListener("click", () => {
+  clearAll();
+  if (markers.length) clearMarkers();
+  if (meMarker) meMarker.setMap(null), meMarker = null;
+  if (meAccuracyCircle) meAccuracyCircle.setMap(null), meAccuracyCircle = null;
+  els.search.value = "";
+  els.list.innerHTML = "";
+  els.chipCount.textContent = "0 nokta";
+  els.chipGps.textContent = "GPS: -";
+  setStatus("KML yükleyin");
+  goPickScreen();
+});
+
+els.search?.addEventListener("input", renderList);
+
+// Service worker
+if ("serviceWorker" in navigator){
+  navigator.serviceWorker.register("./sw.js").catch(()=>{});
 }
 
-function navigate(p){
-const url=`https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lon}`;
-window.location.href=url;
-}
+// İlk ekran
+setStatus("KML yükleyin");
+// Storage varsa Google Maps hazır olduğunda init olacak
