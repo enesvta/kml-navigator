@@ -171,7 +171,7 @@ function escapeHtml(s) {
   })[m]);
 }
 
-// ---------- Minimalist “pill” marker + KML adı ----------
+// ---------- Modern minimalist marker (pill + crosshair) ----------
 function setKmlMarkers() {
   initMap();
   clearMarkers();
@@ -188,28 +188,38 @@ function setKmlMarkers() {
     const p = points[i];
     const labelText = (p.name || `${i + 1}`).trim();
 
-    // Minimalist pill (tek parça)
+    // Teal pill + crosshair = noktanın tam yerini net görürsün
     const svg = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="78" height="34" viewBox="0 0 78 34">
+      <svg xmlns="http://www.w3.org/2000/svg" width="92" height="58" viewBox="0 0 92 58">
         <defs>
           <filter id="s" x="-40%" y="-40%" width="180%" height="180%">
             <feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="rgba(0,0,0,0.35)"/>
           </filter>
         </defs>
+
+        <!-- Label pill -->
         <g filter="url(#s)">
-          <rect x="6" y="6" rx="999" ry="999" width="66" height="22"
-                fill="rgba(37,99,235,0.95)"/>
-          <rect x="6" y="6" rx="999" ry="999" width="66" height="22"
-                fill="none" stroke="rgba(255,255,255,0.18)"/>
+          <rect x="10" y="8" rx="999" ry="999" width="72" height="24"
+                fill="rgba(20,184,166,0.96)"/>
+          <rect x="10" y="8" rx="999" ry="999" width="72" height="24"
+                fill="none" stroke="rgba(255,255,255,0.22)"/>
         </g>
+
+        <!-- Crosshair center: (46,48) -->
+        <line x1="46" y1="36" x2="46" y2="56" stroke="rgba(255,255,255,0.9)" stroke-width="2" stroke-linecap="round"/>
+        <line x1="36" y1="48" x2="56" y2="48" stroke="rgba(255,255,255,0.9)" stroke-width="2" stroke-linecap="round"/>
+
+        <!-- exact point -->
+        <circle cx="46" cy="48" r="4.2" fill="rgba(0,0,0,0.25)"/>
+        <circle cx="46" cy="48" r="3.2" fill="rgba(255,255,255,0.95)"/>
       </svg>
     `;
 
     const icon = {
       url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg),
-      scaledSize: new google.maps.Size(78, 34),
-      anchor: new google.maps.Point(39, 17), // merkez
-      labelOrigin: new google.maps.Point(39, 21), // yazı ortası
+      scaledSize: new google.maps.Size(92, 58),
+      anchor: new google.maps.Point(46, 48),      // tam koordinat
+      labelOrigin: new google.maps.Point(46, 25), // yazı ortası
     };
 
     const m = new google.maps.Marker({
