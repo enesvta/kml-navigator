@@ -6,9 +6,9 @@
   <meta name="theme-color" content="#0b0f18" />
   <title>CENTRAL MUHENDISLIK</title>
 
-  <link rel="manifest" href="manifest.webmanifest?v=CM1" />
+  <link rel="manifest" href="manifest.webmanifest?v=CM2" />
   <link rel="apple-touch-icon" href="icons/logo.jpg" />
-  <link rel="stylesheet" href="style.css?v=CM1" />
+  <link rel="stylesheet" href="style.css?v=CM2" />
 </head>
 <body>
 
@@ -19,21 +19,20 @@
     <div class="pickTitle">CENTRAL MUHENDISLIK</div>
     <div class="pickSub">KML seç → Uydu + Konum + Noktalar</div>
 
-    <label class="pickBtn">
+    <label class="pickBtn" id="pickBtn">
       KML Seç
       <input id="fileInput" type="file" accept=".kml,application/vnd.google-earth.kml+xml" hidden />
     </label>
 
     <div class="pickHint">
-      iPhone: Safari → Paylaş → <b>Ana Ekrana Ekle</b><br/>
-      Android: Chrome → <b>Install</b>
+      WhatsApp → Paylaş → <b>Dosyalara Kaydet</b> → Uygulama → <b>KML Seç</b>
     </div>
 
-    <div class="pickHint" id="pickError" style="display:none;"></div>
+    <div class="pickHint err" id="pickError" style="display:none;"></div>
   </div>
 </main>
 
-<!-- EKRAN 2: HARİTA + LİSTE -->
+<!-- EKRAN 2: HARİTA + LISTE -->
 <div id="screenMain" class="screenMain" style="display:none;">
   <header class="topbar">
     <div class="brand">
@@ -44,31 +43,47 @@
       </div>
     </div>
 
-    <div class="actions">
-      <button class="btn ghost" id="btnReupload" type="button">KML Değiştir</button>
-      <button class="btn ghost" id="btnFit" type="button">Kanavaya Yaklaş</button>
-      <button class="btn ghost" id="btnMe" type="button">Konumum</button>
-      <button class="btn ghost" id="btnClear" type="button">Temizle</button>
-    </div>
+    <button class="btn ghost iconBtn" id="btnMenu" type="button" aria-label="Menü">⋯</button>
   </header>
+
+  <!-- Menü (Fit / Temizle) -->
+  <div class="menu" id="menu" style="display:none;">
+    <button class="btn ghost menuBtn" id="btnFit" type="button">Kanavaya Yaklaş</button>
+    <button class="btn ghost menuBtn" id="btnClear" type="button">Temizle</button>
+  </div>
 
   <section class="mapWrap">
     <div id="map" class="map"></div>
+
     <div class="mapChips">
       <span class="chip" id="chipCount">0 nokta</span>
       <span class="chip" id="chipGps">GPS: -</span>
     </div>
+
+    <!-- FAB -->
+    <div class="fabWrap">
+      <button class="fab primary" id="fabMe" type="button" aria-label="Konumum">⦿</button>
+      <button class="fab" id="fabKml" type="button" aria-label="KML Değiştir">⬆︎</button>
+    </div>
+
+    <!-- Sheet handle -->
+    <button class="sheetHandle" id="sheetHandle" type="button" aria-label="Listeyi aç/kapat">
+      <span class="sheetPill"></span>
+    </button>
   </section>
 
-  <section class="listPanel">
-    <input id="search" class="search" placeholder="Nokta ara..." autocomplete="off" />
+  <!-- Bottom sheet liste -->
+  <section class="sheet" id="sheet">
+    <div class="sheetTop">
+      <input id="search" class="search" placeholder="Nokta ara..." autocomplete="off" />
+    </div>
     <div id="list" class="list"></div>
   </section>
 </div>
 
 <div class="toast" id="toast"></div>
 
-<script src="app.js?v=CM1"></script>
+<script src="app.js?v=CM2"></script>
 
 <!-- Google Maps JS API: KEY'i buraya yaz -->
 <script
