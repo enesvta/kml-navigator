@@ -35,7 +35,7 @@ let map = null;
 let points = [];
 let markers = [];
 
-let gpsMarker = null;
+let gpsMarker = null;   // custom icon (no circle)
 let lastPos = null;
 let watchId = null;
 
@@ -56,7 +56,6 @@ function showPickError(msg) {
   els.pickError.style.display = "block";
   els.pickError.textContent = msg;
 }
-
 function hidePickError() {
   if (!els.pickError) return;
   els.pickError.style.display = "none";
@@ -134,7 +133,7 @@ function clearMarkers() {
   markers = [];
 }
 
-/* Marker: saydam teal pill + crosshair, tam nokta belli */
+/* KML marker: yellow translucent pill + crosshair, exact point visible */
 function setKmlMarkers() {
   initMap();
   clearMarkers();
@@ -143,7 +142,7 @@ function setKmlMarkers() {
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif",
     fontSize: "11px",
     fontWeight: "900",
-    color: "#fff",
+    color: "#0E121A", // dark text over yellow
   };
 
   points.forEach((p, i) => {
@@ -159,16 +158,16 @@ function setKmlMarkers() {
 
   <g filter="url(#s)">
     <rect x="10" y="8" rx="999" ry="999" width="72" height="24"
-      fill="rgba(20,184,166,0.38)"
-      stroke="rgba(255,255,255,0.28)"
+      fill="rgba(247,200,70,0.42)"
+      stroke="rgba(240,240,240,0.22)"
       stroke-width="1"/>
   </g>
 
-  <line x1="46" y1="36" x2="46" y2="56" stroke="white" stroke-width="2" stroke-linecap="round"/>
-  <line x1="36" y1="48" x2="56" y2="48" stroke="white" stroke-width="2" stroke-linecap="round"/>
+  <line x1="46" y1="36" x2="46" y2="56" stroke="rgba(240,240,240,0.95)" stroke-width="2" stroke-linecap="round"/>
+  <line x1="36" y1="48" x2="56" y2="48" stroke="rgba(240,240,240,0.95)" stroke-width="2" stroke-linecap="round"/>
 
-  <circle cx="46" cy="48" r="4" fill="black" opacity="0.25"/>
-  <circle cx="46" cy="48" r="3" fill="white"/>
+  <circle cx="46" cy="48" r="4" fill="rgba(14,18,26,0.35)"/>
+  <circle cx="46" cy="48" r="3" fill="rgba(240,240,240,0.98)"/>
 </svg>`;
 
     const icon = {
@@ -194,14 +193,13 @@ function setKmlMarkers() {
   fitToKml(true);
 }
 
-/* Otomatik kanava zoom */
+/* Auto zoom to KML */
 function fitToKml(force = false) {
   if (!map || !points.length) return;
   const bounds = new google.maps.LatLngBounds();
   points.forEach(p => bounds.extend({ lat: p.lat, lng: p.lon }));
   map.fitBounds(bounds, 60);
 
-  // Harita ilk kez render olunca bir kez daha (daha stabil)
   if (force) {
     google.maps.event.addListenerOnce(map, "idle", () => {
       map.fitBounds(bounds, 60);
@@ -209,7 +207,7 @@ function fitToKml(force = false) {
   }
 }
 
-/* GPS: çembersiz crosshair */
+/* GPS marker: yellow target + small arrow (NO circle/accuracy ring) */
 function ensureGps() {
   if (!navigator.geolocation) {
     if (els.chipGps) els.chipGps.textContent = "GPS: desteklenmiyor";
@@ -228,16 +226,25 @@ function ensureGps() {
       if (!map) return;
 
       const svg = `
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">
-  <line x1="12" y1="0" x2="12" y2="24" stroke="white" stroke-width="2" stroke-linecap="round"/>
-  <line x1="0" y1="12" x2="24" y2="12" stroke="white" stroke-width="2" stroke-linecap="round"/>
-  <circle cx="12" cy="12" r="4" fill="white"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 34 34">
+  <defs>
+    <filter id="s" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="rgba(0,0,0,0.35)"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#s)">
+    <circle cx="17" cy="17" r="12" fill="rgba(247,200,70,0.18)" stroke="rgba(247,200,70,0.90)" stroke-width="2"/>
+  </g>
+
+  <circle cx="17" cy="17" r="4.2" fill="rgba(247,200,70,0.98)" stroke="rgba(14,18,26,0.70)" stroke-width="1"/>
+  <path d="M17 6 L20 12 L17 11 L14 12 Z" fill="rgba(247,200,70,0.98)"/>
 </svg>`;
 
       const icon = {
         url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg),
-        scaledSize: new google.maps.Size(24, 24),
-        anchor: new google.maps.Point(12, 12),
+        scaledSize: new google.maps.Size(34, 34),
+        anchor: new google.maps.Point(17, 17),
       };
 
       if (!gpsMarker) {
@@ -263,7 +270,7 @@ function panToMe() {
   map.panTo({ lat: lastPos.lat, lng: lastPos.lon });
 }
 
-/* Nav: CarPlay için comgooglemaps dene, yoksa https */
+/* Navigation */
 function openNav(lat, lon) {
   const schemeUrl = `comgooglemaps://?daddr=${lat},${lon}&directionsmode=driving`;
   const httpsUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=driving`;
@@ -274,6 +281,7 @@ function openNav(lat, lon) {
   }, 450);
 }
 
+/* List */
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (m) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;",
@@ -282,7 +290,6 @@ function escapeHtml(s) {
 
 function renderList() {
   if (!els.list) return;
-
   const q = (els.search?.value || "").trim().toLowerCase();
   els.list.innerHTML = "";
 
@@ -290,7 +297,6 @@ function renderList() {
     .map((p, i) => ({ ...p, i }))
     .filter(x => !q || x.name.toLowerCase().includes(q));
 
-  // küçük “stagger” animasyon hissi: her item’a gecikmeli opacity
   filtered.forEach((p, idx) => {
     const div = document.createElement("div");
     div.className = "item";
@@ -314,8 +320,6 @@ function renderList() {
     };
 
     els.list.appendChild(div);
-
-    // animate in
     requestAnimationFrame(() => {
       div.style.opacity = "1";
       div.style.transform = "translateY(0)";
@@ -323,29 +327,7 @@ function renderList() {
   });
 }
 
-async function handleKmlFile(file) {
-  hidePickError();
-  setStatus("KML okunuyor…");
-  await waitForGoogleMaps();
-
-  const text = await file.text();
-  points = parseKml(text);
-  if (!points.length) throw new Error("KML içinde nokta bulunamadı (Placemark/Point).");
-
-  initMap();
-  setKmlMarkers();      // -> fitToKml(true) içeriyor
-  ensureGps();
-  renderList();
-
-  if (els.chipCount) els.chipCount.textContent = `${points.length} nokta`;
-  setStatus(`Hazır: ${points.length} nokta`);
-
-  els.screenPick.style.display = "none";
-  els.screenMain.style.display = "flex";
-  toast("Yüklendi");
-}
-
-/* --- Ripple helper --- */
+/* Ripple helper */
 function enableRipples() {
   const all = document.querySelectorAll(".btn, .fab, .pickBtn, .sheetHandle");
   all.forEach(el => {
@@ -363,34 +345,26 @@ function enableRipples() {
   });
 }
 
-/* --- Sheet toggle + drag --- */
+/* Sheet toggle + drag */
 let sheetExpanded = false;
 function setSheetState(expanded) {
   sheetExpanded = expanded;
   if (expanded) els.sheet.classList.add("expanded");
   else els.sheet.classList.remove("expanded");
 }
-function toggleSheet() {
-  setSheetState(!sheetExpanded);
-}
+function toggleSheet() { setSheetState(!sheetExpanded); }
 
 function enableSheetDrag() {
   let startY = 0;
-  let startExpanded = false;
   let dragging = false;
 
   const handle = els.sheetHandle;
   if (!handle) return;
 
-  const onStart = (y) => {
-    dragging = true;
-    startY = y;
-    startExpanded = sheetExpanded;
-  };
+  const onStart = (y) => { dragging = true; startY = y; };
   const onMove = (y) => {
     if (!dragging) return;
     const dy = y - startY;
-    // yukarı sürükle -> expand, aşağı -> collapse
     if (dy < -22) setSheetState(true);
     if (dy > 22) setSheetState(false);
   };
@@ -400,32 +374,43 @@ function enableSheetDrag() {
   handle.addEventListener("touchstart", (e) => onStart(e.touches[0].clientY), { passive: true });
   handle.addEventListener("touchmove", (e) => onMove(e.touches[0].clientY), { passive: true });
   handle.addEventListener("touchend", onEnd, { passive: true });
-
-  // sheet üst kısmında da sürüklenebilsin
-  els.sheet.addEventListener("touchstart", (e) => {
-    if (e.touches[0].clientY < 120) onStart(e.touches[0].clientY);
-  }, { passive: true });
-  els.sheet.addEventListener("touchmove", (e) => onMove(e.touches[0].clientY), { passive: true });
-  els.sheet.addEventListener("touchend", onEnd, { passive: true });
 }
 
-/* Menu toggle */
+/* Menu */
 function toggleMenu() {
   const open = els.menu.style.display !== "none";
   els.menu.style.display = open ? "none" : "flex";
 }
+function closeMenu() { els.menu.style.display = "none"; }
 
-function closeMenu() {
-  els.menu.style.display = "none";
+/* Main flow */
+async function handleKmlFile(file) {
+  hidePickError();
+  setStatus("KML okunuyor…");
+  await waitForGoogleMaps();
+
+  const text = await file.text();
+  points = parseKml(text);
+  if (!points.length) throw new Error("KML içinde nokta bulunamadı (Placemark/Point).");
+
+  initMap();
+  setKmlMarkers();   // includes auto-fit
+  ensureGps();
+  renderList();
+
+  if (els.chipCount) els.chipCount.textContent = `${points.length} nokta`;
+  setStatus(`Hazır: ${points.length} nokta`);
+
+  els.screenPick.style.display = "none";
+  els.screenMain.style.display = "flex";
+  toast("Yüklendi");
 }
 
-/* Init from storage (opsiyonel: önceki noktaları tutmak istersen) */
 function tryInitFromStorage() {
-  // İstersen burada localStorage’dan points yükleyip direkt açtırabilirsin.
-  // Şu an: KML seçilmeden bir şey yapmıyoruz.
   setStatus("KML yükleyin");
 }
 
+/* Events */
 els.fileInput?.addEventListener("change", async (e) => {
   const f = e.target.files?.[0];
   if (!f) return;
@@ -439,8 +424,6 @@ els.fabMe?.addEventListener("click", panToMe);
 
 els.btnMenu?.addEventListener("click", toggleMenu);
 document.addEventListener("click", (e) => {
-  // menü dışına tıklayınca kapat
-  if (!els.menu) return;
   const insideMenu = els.menu.contains(e.target) || els.btnMenu.contains(e.target);
   if (!insideMenu) closeMenu();
 });
