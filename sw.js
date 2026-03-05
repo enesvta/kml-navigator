@@ -1,4 +1,4 @@
-const CACHE = "kml-central-v4";
+const CACHE = "central-theme-v1";
 
 const BASE = new URL("./", self.location).pathname.replace(/\/$/, "");
 const ASSETS = [
