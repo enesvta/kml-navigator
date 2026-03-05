@@ -1,4 +1,4 @@
-const CACHE = "central-cream-v2";
+const CACHE = "central-neon-v1";
 
 const BASE = new URL("./", self.location).pathname.replace(/\/$/, "");
 const ASSETS = [
