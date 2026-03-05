@@ -24,6 +24,7 @@ const els = {
 
   sheet: document.getElementById("sheet"),
   sheetHandle: document.getElementById("sheetHandle"),
+  btnSheetToggle: document.getElementById("btnSheetToggle"),
 
   search: document.getElementById("search"),
   list: document.getElementById("list"),
@@ -35,9 +36,11 @@ let map = null;
 let points = [];
 let markers = [];
 
-let gpsMarker = null;   // custom icon (no circle)
+let gpsMarker = null;
 let lastPos = null;
 let watchId = null;
+
+let sheetExpanded = false;
 
 function toast(msg) {
   if (!els.toast) return;
@@ -133,7 +136,7 @@ function clearMarkers() {
   markers = [];
 }
 
-/* KML marker: yellow translucent pill + crosshair, exact point visible */
+/* KML markers: cream/yellow translucent pill + crosshair (exact point) */
 function setKmlMarkers() {
   initMap();
   clearMarkers();
@@ -142,7 +145,7 @@ function setKmlMarkers() {
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif",
     fontSize: "11px",
     fontWeight: "900",
-    color: "#0E121A", // dark text over yellow
+    color: "#14120F",
   };
 
   points.forEach((p, i) => {
@@ -158,16 +161,16 @@ function setKmlMarkers() {
 
   <g filter="url(#s)">
     <rect x="10" y="8" rx="999" ry="999" width="72" height="24"
-      fill="rgba(247,200,70,0.42)"
-      stroke="rgba(240,240,240,0.22)"
+      fill="rgba(244,227,193,0.44)"
+      stroke="rgba(246,241,231,0.22)"
       stroke-width="1"/>
   </g>
 
-  <line x1="46" y1="36" x2="46" y2="56" stroke="rgba(240,240,240,0.95)" stroke-width="2" stroke-linecap="round"/>
-  <line x1="36" y1="48" x2="56" y2="48" stroke="rgba(240,240,240,0.95)" stroke-width="2" stroke-linecap="round"/>
+  <line x1="46" y1="36" x2="46" y2="56" stroke="rgba(246,241,231,0.95)" stroke-width="2" stroke-linecap="round"/>
+  <line x1="36" y1="48" x2="56" y2="48" stroke="rgba(246,241,231,0.95)" stroke-width="2" stroke-linecap="round"/>
 
-  <circle cx="46" cy="48" r="4" fill="rgba(14,18,26,0.35)"/>
-  <circle cx="46" cy="48" r="3" fill="rgba(240,240,240,0.98)"/>
+  <circle cx="46" cy="48" r="4" fill="rgba(20,18,15,0.35)"/>
+  <circle cx="46" cy="48" r="3" fill="rgba(246,241,231,0.98)"/>
 </svg>`;
 
     const icon = {
@@ -207,7 +210,7 @@ function fitToKml(force = false) {
   }
 }
 
-/* GPS marker: yellow target + small arrow (NO circle/accuracy ring) */
+/* GPS marker: cream target + small arrow (no accuracy circle) */
 function ensureGps() {
   if (!navigator.geolocation) {
     if (els.chipGps) els.chipGps.textContent = "GPS: desteklenmiyor";
@@ -234,11 +237,11 @@ function ensureGps() {
   </defs>
 
   <g filter="url(#s)">
-    <circle cx="17" cy="17" r="12" fill="rgba(247,200,70,0.18)" stroke="rgba(247,200,70,0.90)" stroke-width="2"/>
+    <circle cx="17" cy="17" r="12" fill="rgba(244,227,193,0.16)" stroke="rgba(244,227,193,0.92)" stroke-width="2"/>
   </g>
 
-  <circle cx="17" cy="17" r="4.2" fill="rgba(247,200,70,0.98)" stroke="rgba(14,18,26,0.70)" stroke-width="1"/>
-  <path d="M17 6 L20 12 L17 11 L14 12 Z" fill="rgba(247,200,70,0.98)"/>
+  <circle cx="17" cy="17" r="4.2" fill="rgba(244,227,193,0.98)" stroke="rgba(20,18,15,0.70)" stroke-width="1"/>
+  <path d="M17 6 L20 12 L17 11 L14 12 Z" fill="rgba(244,227,193,0.98)"/>
 </svg>`;
 
       const icon = {
@@ -329,7 +332,7 @@ function renderList() {
 
 /* Ripple helper */
 function enableRipples() {
-  const all = document.querySelectorAll(".btn, .fab, .pickBtn, .sheetHandle");
+  const all = document.querySelectorAll(".btn, .fab, .pickBtn, .sheetHandle, .sheetMiniBtn");
   all.forEach(el => {
     el.addEventListener("pointerdown", (e) => {
       const r = el.getBoundingClientRect();
@@ -345,12 +348,16 @@ function enableRipples() {
   });
 }
 
-/* Sheet toggle + drag */
-let sheetExpanded = false;
+/* Sheet */
+function updateSheetToggleIcon(){
+  if (!els.btnSheetToggle) return;
+  els.btnSheetToggle.textContent = sheetExpanded ? "⌃" : "⌄";
+}
 function setSheetState(expanded) {
   sheetExpanded = expanded;
   if (expanded) els.sheet.classList.add("expanded");
   else els.sheet.classList.remove("expanded");
+  updateSheetToggleIcon();
 }
 function toggleSheet() { setSheetState(!sheetExpanded); }
 
@@ -365,8 +372,8 @@ function enableSheetDrag() {
   const onMove = (y) => {
     if (!dragging) return;
     const dy = y - startY;
-    if (dy < -22) setSheetState(true);
-    if (dy > 22) setSheetState(false);
+    if (dy < -35) setSheetState(true);
+    if (dy > 35) setSheetState(false);
   };
   const onEnd = () => { dragging = false; };
 
@@ -374,6 +381,13 @@ function enableSheetDrag() {
   handle.addEventListener("touchstart", (e) => onStart(e.touches[0].clientY), { passive: true });
   handle.addEventListener("touchmove", (e) => onMove(e.touches[0].clientY), { passive: true });
   handle.addEventListener("touchend", onEnd, { passive: true });
+
+  // Sheet üst alanından sürükleme
+  els.sheet.addEventListener("touchstart", (e) => {
+    if (e.touches[0].clientY < 160) onStart(e.touches[0].clientY);
+  }, { passive: true });
+  els.sheet.addEventListener("touchmove", (e) => onMove(e.touches[0].clientY), { passive: true });
+  els.sheet.addEventListener("touchend", onEnd, { passive: true });
 }
 
 /* Menu */
@@ -394,7 +408,7 @@ async function handleKmlFile(file) {
   if (!points.length) throw new Error("KML içinde nokta bulunamadı (Placemark/Point).");
 
   initMap();
-  setKmlMarkers();   // includes auto-fit
+  setKmlMarkers();
   ensureGps();
   renderList();
 
@@ -447,6 +461,7 @@ els.btnClear?.addEventListener("click", () => {
 });
 
 els.search?.addEventListener("input", renderList);
+els.btnSheetToggle?.addEventListener("click", toggleSheet);
 
 /* Service worker */
 if ("serviceWorker" in navigator) {
