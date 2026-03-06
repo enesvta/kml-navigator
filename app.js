@@ -1,6 +1,7 @@
 window.onGoogleMapsLoaded = () => {
   window.__gmapsReady = true;
   setStatus("KML yükleyin");
+  updateDateChip();
 };
 
 const els = {
@@ -8,15 +9,16 @@ const els = {
   screenMain: document.getElementById("screenMain"),
   fileInput: document.getElementById("fileInput"),
   pickError: document.getElementById("pickError"),
-  pickBtn: document.getElementById("pickBtn"),
 
   status: document.getElementById("status"),
   chipCount: document.getElementById("chipCount"),
   chipGps: document.getElementById("chipGps"),
+  chipDate: document.getElementById("chipDate"),
 
   btnMe: document.getElementById("btnMe"),
   btnFit: document.getElementById("btnFit"),
   btnKml: document.getElementById("btnKml"),
+  btnExport: document.getElementById("btnExport"),
   btnClear: document.getElementById("btnClear"),
 
   sheet: document.getElementById("sheet"),
@@ -24,6 +26,33 @@ const els = {
 
   search: document.getElementById("search"),
   list: document.getElementById("list"),
+
+  // action sheet
+  actionOverlay: document.getElementById("actionOverlay"),
+  actionPoint: document.getElementById("actionPoint"),
+  actionMeta: document.getElementById("actionMeta"),
+  btnActionClose: document.getElementById("btnActionClose"),
+  btnNav: document.getElementById("btnNav"),
+  btnStart: document.getElementById("btnStart"),
+  btnFinish: document.getElementById("btnFinish"),
+
+  // form
+  formOverlay: document.getElementById("formOverlay"),
+  formTitle: document.getElementById("formTitle"),
+  formPoint: document.getElementById("formPoint"),
+  btnFormClose: document.getElementById("btnFormClose"),
+  btnFormSave: document.getElementById("btnFormSave"),
+
+  startFields: document.getElementById("startFields"),
+  finishFields: document.getElementById("finishFields"),
+
+  deviceName: document.getElementById("deviceName"),
+  deviceHeight: document.getElementById("deviceHeight"),
+  loadType: document.getElementById("loadType"),
+  startTime: document.getElementById("startTime"),
+  endTime: document.getElementById("endTime"),
+  btnNowStart: document.getElementById("btnNowStart"),
+  btnNowEnd: document.getElementById("btnNowEnd"),
 
   toast: document.getElementById("toast"),
 };
@@ -37,6 +66,14 @@ let lastPos = null;
 let watchId = null;
 
 let sheetExpanded = false;
+
+// selected point context
+let selectedPoint = null; // {name, lat, lon, idx}
+
+// form mode
+let formMode = null; // "start" | "finish"
+
+const STORAGE_PREFIX = "cm_saha_records_v1";
 
 function toast(msg){
   if (!els.toast) return;
@@ -61,17 +98,61 @@ function clearError(){
   els.pickError.textContent = "";
 }
 
-function waitForGoogleMaps(timeoutMs = 12000) {
-  return new Promise((resolve, reject) => {
+function todayKey(){
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  const day = String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
+}
+
+function updateDateChip(){
+  if (els.chipDate) els.chipDate.textContent = todayKey();
+}
+
+function recordKey(pointName){
+  return `${STORAGE_PREFIX}:${todayKey()}:${pointName}`;
+}
+
+function loadRecord(pointName){
+  try{
+    const raw = localStorage.getItem(recordKey(pointName));
+    return raw ? JSON.parse(raw) : null;
+  }catch(_){
+    return null;
+  }
+}
+
+function saveRecord(pointName, data){
+  localStorage.setItem(recordKey(pointName), JSON.stringify(data));
+}
+
+function recordState(pointName){
+  const r = loadRecord(pointName);
+  if (!r) return "empty";
+  if (r.startTime && r.endTime) return "done";
+  if (r.startTime) return "started";
+  return "empty";
+}
+
+function nowHHMM(){
+  const d = new Date();
+  const hh = String(d.getHours()).padStart(2,"0");
+  const mm = String(d.getMinutes()).padStart(2,"0");
+  return `${hh}:${mm}`;
+}
+
+function waitForGoogleMaps(timeoutMs = 12000){
+  return new Promise((resolve,reject)=>{
     const start = Date.now();
-    const t = setInterval(() => {
+    const t = setInterval(()=>{
       const ok = window.__gmapsReady && typeof google !== "undefined" && google.maps;
-      if (ok) { clearInterval(t); resolve(true); }
-      else if (Date.now() - start > timeoutMs) {
+      if (ok){ clearInterval(t); resolve(true); }
+      else if (Date.now()-start > timeoutMs){
         clearInterval(t);
         reject(new Error("Google Maps yüklenmedi. API key / internet / billing kontrol edin."));
       }
-    }, 100);
+    },100);
   });
 }
 
@@ -88,7 +169,6 @@ function initMap(){
   });
 }
 
-/* KML parse */
 function parseKml(text){
   const xml = new DOMParser().parseFromString(text,"application/xml");
   const parseError = xml.querySelector("parsererror");
@@ -131,7 +211,20 @@ function clearMarkers(){
   markers=[];
 }
 
-/* Neon minimalist KML marker: pill + crosshair exact point */
+function fitToKml(force=false){
+  if (!map || !points.length) return;
+  const bounds=new google.maps.LatLngBounds();
+  points.forEach(p=>bounds.extend({lat:p.lat,lng:p.lon}));
+  map.fitBounds(bounds,60);
+
+  if (force){
+    google.maps.event.addListenerOnce(map,"idle",()=>{
+      map.fitBounds(bounds,60);
+    });
+  }
+}
+
+/* KML marker: neon pill + crosshair exact */
 function setKmlMarkers(){
   initMap();
   clearMarkers();
@@ -184,28 +277,17 @@ function setKmlMarkers(){
       zIndex: 1000+i
     });
 
-    m.addListener("click",()=>openNav(p.lat,p.lon));
+    m.addListener("click",()=>{
+      openActionSheet({ ...p, idx: i });
+    });
+
     markers.push(m);
   });
 
   fitToKml(true);
 }
 
-/* Auto zoom to KML */
-function fitToKml(force=false){
-  if (!map || !points.length) return;
-  const bounds=new google.maps.LatLngBounds();
-  points.forEach(p=>bounds.extend({lat:p.lat,lng:p.lon}));
-  map.fitBounds(bounds,60);
-
-  if (force){
-    google.maps.event.addListenerOnce(map,"idle",()=>{
-      map.fitBounds(bounds,60);
-    });
-  }
-}
-
-/* GPS marker (distinct neon ring + pointer), NO accuracy circle */
+/* GPS marker distinct */
 function ensureGps(){
   if (!navigator.geolocation){
     els.chipGps.textContent="GPS off";
@@ -269,7 +351,7 @@ function panToMe(){
   map.panTo({lat:lastPos.lat,lng:lastPos.lon});
 }
 
-/* Navigation */
+/* CarPlay navigation */
 function openNav(lat,lon){
   const schemeUrl=`comgooglemaps://?daddr=${lat},${lon}&directionsmode=driving`;
   const httpsUrl=`https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=driving`;
@@ -286,7 +368,13 @@ function escapeHtml(s){
   }[m]));
 }
 
-/* List render with subtle stagger animation */
+function stateLabel(st){
+  if (st==="done") return "✓";
+  if (st==="started") return "•";
+  return "";
+}
+
+/* LIST */
 function renderList(){
   const q=(els.search.value||"").trim().toLowerCase();
   els.list.innerHTML="";
@@ -296,6 +384,8 @@ function renderList(){
     .filter(x=>!q || x.name.toLowerCase().includes(q));
 
   filtered.forEach((p,idx)=>{
+    const st = recordState(p.name);
+
     const div=document.createElement("div");
     div.className="item";
     div.style.opacity="0";
@@ -307,15 +397,14 @@ function renderList(){
   <div class="itemTitle">${escapeHtml(p.name)}</div>
   <div class="itemSub">${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}</div>
 </div>
-<div class="badge">${p.i+1}</div>
+<div class="badges">
+  <span class="stateDot ${st==="started" ? "started" : st==="done" ? "done" : ""}"></span>
+  <span class="badge">${p.i+1}</span>
+</div>
 `;
 
     div.onclick=()=>{
-      if (map){
-        map.setZoom(Math.max(map.getZoom(),17));
-        map.panTo({lat:p.lat,lng:p.lon});
-      }
-      openNav(p.lat,p.lon);
+      openActionSheet(p);
     };
 
     els.list.appendChild(div);
@@ -327,16 +416,13 @@ function renderList(){
   });
 }
 
-/* Sheet toggle + drag (can shrink back) */
+/* SHEET toggle + drag */
 function setSheetState(expanded){
   sheetExpanded = expanded;
   if (expanded) els.sheet.classList.add("expanded");
   else els.sheet.classList.remove("expanded");
 }
-
-function toggleSheet(){
-  setSheetState(!sheetExpanded);
-}
+function toggleSheet(){ setSheetState(!sheetExpanded); }
 
 function enableSheetDrag(){
   let startY=0;
@@ -364,10 +450,164 @@ function enableSheetDrag(){
   els.sheet.addEventListener("touchend", onEnd, {passive:true});
 }
 
-/* Main flow */
+/* ACTION SHEET */
+function openActionSheet(p){
+  selectedPoint = p;
+
+  const st = recordState(p.name);
+  const rec = loadRecord(p.name);
+  let meta = `Durum: ${st==="done" ? "Tamamlandı" : st==="started" ? "Kuruldu" : "Boş"}`;
+  if (rec?.startTime) meta += ` · Baş: ${rec.startTime}`;
+  if (rec?.endTime) meta += ` · Bit: ${rec.endTime}`;
+
+  els.actionPoint.textContent = p.name;
+  els.actionMeta.textContent = meta;
+
+  // Start/Finish enable logic
+  els.btnStart.disabled = (st === "done"); // done ise start değiştirmesin
+  els.btnFinish.disabled = (!rec?.startTime); // start yoksa finish yok
+
+  els.actionOverlay.style.display = "flex";
+}
+
+function closeActionSheet(){
+  els.actionOverlay.style.display = "none";
+}
+
+function openForm(mode){
+  formMode = mode;
+  const p = selectedPoint;
+  const rec = loadRecord(p.name) || {
+    point: p.name,
+    date: todayKey(),
+    deviceName: "",
+    deviceHeight: "",
+    loadType: "Jalon",
+    startTime: "",
+    endTime: "",
+    updatedAt: Date.now()
+  };
+
+  els.formPoint.textContent = `${p.name} · ${todayKey()}`;
+
+  if (mode === "start"){
+    els.formTitle.textContent = "Kurulum Kaydı";
+    els.startFields.style.display = "block";
+    els.finishFields.style.display = "none";
+
+    els.deviceName.value = rec.deviceName || "";
+    els.deviceHeight.value = rec.deviceHeight || "";
+    els.loadType.value = rec.loadType || "Jalon";
+    els.startTime.value = rec.startTime || "";
+  } else {
+    els.formTitle.textContent = "Toplama Kaydı";
+    els.startFields.style.display = "none";
+    els.finishFields.style.display = "block";
+
+    els.endTime.value = rec.endTime || "";
+  }
+
+  els.formOverlay.style.display = "flex";
+}
+
+function closeForm(){
+  els.formOverlay.style.display = "none";
+}
+
+function validateHHMM(v){
+  // basic HH:MM
+  const m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec((v||"").trim());
+  return !!m;
+}
+
+function saveForm(){
+  const p = selectedPoint;
+  if (!p) return;
+
+  const existing = loadRecord(p.name) || {
+    point: p.name,
+    date: todayKey(),
+    deviceName: "",
+    deviceHeight: "",
+    loadType: "Jalon",
+    startTime: "",
+    endTime: "",
+    updatedAt: Date.now()
+  };
+
+  if (formMode === "start"){
+    const dn = (els.deviceName.value || "").trim();
+    const dh = (els.deviceHeight.value || "").trim();
+    const lt = els.loadType.value || "Jalon";
+    const st = (els.startTime.value || "").trim();
+
+    if (!dn) return toast("Cihaz adı gerekli");
+    if (!dh) return toast("Yükseklik gerekli");
+    if (!validateHHMM(st)) return toast("Başlangıç saati HH:MM");
+
+    existing.deviceName = dn;
+    existing.deviceHeight = dh;
+    existing.loadType = lt;
+    existing.startTime = st;
+    existing.updatedAt = Date.now();
+  } else {
+    const et = (els.endTime.value || "").trim();
+    if (!validateHHMM(et)) return toast("Bitiş saati HH:MM");
+    existing.endTime = et;
+    existing.updatedAt = Date.now();
+  }
+
+  saveRecord(p.name, existing);
+  toast("Kaydedildi");
+
+  closeForm();
+  closeActionSheet();
+  renderList();
+}
+
+/* EXPORT CSV */
+function exportCSV(){
+  const date = todayKey();
+  const rows = [];
+  rows.push(["Tarih","Nokta","CihazAdı","CihazYüksekliği","YükTipi","Başlangıç","Bitiş"].join(","));
+
+  for (const p of points){
+    const r = loadRecord(p.name);
+    if (!r) continue;
+    const line = [
+      date,
+      r.point || p.name,
+      (r.deviceName || "").replaceAll(","," "),
+      (r.deviceHeight || "").replaceAll(","," "),
+      (r.loadType || "").replaceAll(","," "),
+      (r.startTime || ""),
+      (r.endTime || "")
+    ].join(",");
+    rows.push(line);
+  }
+
+  if (rows.length === 1) return toast("Kayıt yok");
+
+  const csv = rows.join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `CENTRAL_${date}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+
+  toast("CSV indirildi");
+}
+
+/* MAIN FLOW */
 async function handleKmlFile(file){
   clearError();
   setStatus("Yükleniyor…");
+  updateDateChip();
   await waitForGoogleMaps();
 
   const text = await file.text();
@@ -387,7 +627,7 @@ async function handleKmlFile(file){
   toast("Yüklendi");
 }
 
-/* Events */
+/* EVENTS */
 els.fileInput.addEventListener("change", async (e)=>{
   const f=e.target.files?.[0];
   if (!f) return;
@@ -404,6 +644,8 @@ els.fileInput.addEventListener("change", async (e)=>{
 els.btnKml.addEventListener("click", ()=>els.fileInput.click());
 els.btnMe.addEventListener("click", ()=>panToMe());
 els.btnFit.addEventListener("click", ()=>fitToKml(true));
+els.btnExport.addEventListener("click", exportCSV);
+
 els.btnClear.addEventListener("click", ()=>{
   clearMarkers();
   if (gpsMarker) gpsMarker.setMap(null), gpsMarker=null;
@@ -417,12 +659,38 @@ els.btnClear.addEventListener("click", ()=>{
   els.screenMain.style.display="none";
   els.screenPick.style.display="flex";
 });
+
 els.search.addEventListener("input", renderList);
 
-/* Init */
+els.sheetHandle.addEventListener("click", ()=>toggleSheet());
+
 enableSheetDrag();
 setSheetState(false);
 setStatus("KML yükleyin");
+updateDateChip();
+
+/* Action sheet buttons */
+els.btnActionClose.addEventListener("click", closeActionSheet);
+els.actionOverlay.addEventListener("click", (e)=>{
+  if (e.target === els.actionOverlay) closeActionSheet();
+});
+
+els.btnNav.addEventListener("click", ()=>{
+  if (!selectedPoint) return;
+  openNav(selectedPoint.lat, selectedPoint.lon);
+});
+els.btnStart.addEventListener("click", ()=>openForm("start"));
+els.btnFinish.addEventListener("click", ()=>openForm("finish"));
+
+/* Form buttons */
+els.btnFormClose.addEventListener("click", closeForm);
+els.formOverlay.addEventListener("click", (e)=>{
+  if (e.target === els.formOverlay) closeForm();
+});
+els.btnFormSave.addEventListener("click", saveForm);
+
+els.btnNowStart.addEventListener("click", ()=>{ els.startTime.value = nowHHMM(); });
+els.btnNowEnd.addEventListener("click", ()=>{ els.endTime.value = nowHHMM(); });
 
 /* Service worker */
 if ("serviceWorker" in navigator){
