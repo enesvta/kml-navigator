@@ -3,16 +3,16 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#0B0F17" />
+  <meta name="theme-color" content="#070A12" />
   <title>CENTRAL MUHENDISLIK</title>
 
-  <link rel="manifest" href="manifest.webmanifest?v=NEON1" />
+  <link rel="manifest" href="manifest.webmanifest?v=SAHA1" />
   <link rel="apple-touch-icon" href="icons/logo.jpg" />
-  <link rel="stylesheet" href="style.css?v=NEON1" />
+  <link rel="stylesheet" href="style.css?v=SAHA1" />
 </head>
 <body>
 
-<!-- SCREEN 1 (MINIMAL) -->
+<!-- SCREEN 1 -->
 <main id="screenPick" class="screenPick">
   <div class="pickCard">
     <img class="pickLogo" src="icons/logo.jpg" alt="Logo" />
@@ -39,29 +39,21 @@
   <section class="mapWrap">
     <div id="map" class="map"></div>
 
-    <!-- Right mini actions (like your mock) -->
+    <!-- Right mini actions -->
     <div class="rightRail">
-      <button class="miniBtn" id="btnMe" type="button" aria-label="Konumum">
-        <span class="miniIcon">⦿</span>
-      </button>
-      <button class="miniBtn" id="btnFit" type="button" aria-label="Kanavaya Yaklaş">
-        <span class="miniIcon">◎</span>
-      </button>
-      <button class="miniBtn" id="btnKml" type="button" aria-label="KML Değiştir">
-        <span class="miniIcon">⇪</span>
-      </button>
-      <button class="miniBtn danger" id="btnClear" type="button" aria-label="Temizle">
-        <span class="miniIcon">✕</span>
-      </button>
+      <button class="miniBtn" id="btnMe" type="button" aria-label="Konumum"><span class="miniIcon">⦿</span></button>
+      <button class="miniBtn" id="btnFit" type="button" aria-label="Kanavaya Yaklaş"><span class="miniIcon">◎</span></button>
+      <button class="miniBtn" id="btnKml" type="button" aria-label="KML Değiştir"><span class="miniIcon">⇪</span></button>
+      <button class="miniBtn" id="btnExport" type="button" aria-label="CSV Rapor"><span class="miniIcon">⤓</span></button>
+      <button class="miniBtn danger" id="btnClear" type="button" aria-label="Temizle"><span class="miniIcon">✕</span></button>
     </div>
 
-    <!-- minimal chips -->
     <div class="chips">
       <span class="chip" id="chipCount">0</span>
       <span class="chip" id="chipGps">GPS</span>
+      <span class="chip" id="chipDate">-</span>
     </div>
 
-    <!-- sheet handle -->
     <button class="sheetHandle" id="sheetHandle" type="button" aria-label="Listeyi aç/kapat">
       <span class="sheetPill"></span>
     </button>
@@ -76,15 +68,84 @@
   </section>
 </div>
 
+<!-- ACTION SHEET (Nokta işlemleri) -->
+<div class="overlay" id="actionOverlay" style="display:none;">
+  <div class="actionSheet" role="dialog" aria-modal="true">
+    <div class="actionTop">
+      <div class="actionTitle" id="actionPoint">-</div>
+      <button class="xBtn" id="btnActionClose" type="button">✕</button>
+    </div>
+    <div class="actionMeta" id="actionMeta">-</div>
+
+    <div class="actionBtns">
+      <button class="aBtn primary" id="btnNav" type="button">Navigasyon</button>
+      <button class="aBtn" id="btnStart" type="button">Kurulum</button>
+      <button class="aBtn" id="btnFinish" type="button">Toplama</button>
+    </div>
+  </div>
+</div>
+
+<!-- FORM MODAL -->
+<div class="overlay" id="formOverlay" style="display:none;">
+  <div class="formCard" role="dialog" aria-modal="true">
+    <div class="formTop">
+      <div>
+        <div class="formTitle" id="formTitle">-</div>
+        <div class="formSub" id="formPoint">-</div>
+      </div>
+      <button class="xBtn" id="btnFormClose" type="button">✕</button>
+    </div>
+
+    <!-- START fields -->
+    <div id="startFields">
+      <label class="fLabel">Cihaz Adı</label>
+      <input class="fInput" id="deviceName" placeholder="Örn: Cent.12" />
+
+      <label class="fLabel">Cihaz Yüksekliği (m)</label>
+      <input class="fInput" id="deviceHeight" inputmode="decimal" placeholder="Örn: 1.280" />
+
+      <label class="fLabel">Yük Tipi</label>
+      <select class="fInput" id="loadType">
+        <option value="Jalon">Jalon</option>
+        <option value="Tripod">Tripod</option>
+        <option value="Pole">Pole</option>
+        <option value="Diğer">Diğer</option>
+      </select>
+
+      <div class="row2">
+        <div class="col">
+          <label class="fLabel">Başlangıç Saati</label>
+          <input class="fInput" id="startTime" inputmode="numeric" placeholder="HH:MM" />
+        </div>
+        <button class="fMini" id="btnNowStart" type="button">Şimdi</button>
+      </div>
+    </div>
+
+    <!-- FINISH fields -->
+    <div id="finishFields" style="display:none;">
+      <div class="row2">
+        <div class="col">
+          <label class="fLabel">Bitiş Saati</label>
+          <input class="fInput" id="endTime" inputmode="numeric" placeholder="HH:MM" />
+        </div>
+        <button class="fMini" id="btnNowEnd" type="button">Şimdi</button>
+      </div>
+    </div>
+
+    <div class="formActions">
+      <button class="aBtn" id="btnFormSave" type="button">Kaydet</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
-<script src="app.js?v=NEON1"></script>
+<script src="app.js?v=SAHA1"></script>
 
-<!-- Google Maps JS API -->
 <script
   async
   defer
-  src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDuIv98DcTNwDbzN70am6PdQXd8RY4mRTs&v=weekly&callback=onGoogleMapsLoaded">
+  src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&v=weekly&callback=onGoogleMapsLoaded">
 </script>
 
 </body>
