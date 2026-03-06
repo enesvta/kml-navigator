@@ -6,13 +6,12 @@
   <meta name="theme-color" content="#070A12" />
   <title>CENTRAL MUHENDISLIK</title>
 
-  <link rel="manifest" href="manifest.webmanifest?v=SAHA1" />
+  <link rel="manifest" href="manifest.webmanifest?v=SAHA2" />
   <link rel="apple-touch-icon" href="icons/logo.jpg" />
-  <link rel="stylesheet" href="style.css?v=SAHA1" />
+  <link rel="stylesheet" href="style.css?v=SAHA2" />
 </head>
 <body>
 
-<!-- SCREEN 1 -->
 <main id="screenPick" class="screenPick">
   <div class="pickCard">
     <img class="pickLogo" src="icons/logo.jpg" alt="Logo" />
@@ -24,7 +23,6 @@
   </div>
 </main>
 
-<!-- SCREEN 2 -->
 <div id="screenMain" class="screenMain" style="display:none;">
   <header class="topbar">
     <div class="brand">
@@ -39,7 +37,6 @@
   <section class="mapWrap">
     <div id="map" class="map"></div>
 
-    <!-- Right mini actions -->
     <div class="rightRail">
       <button class="miniBtn" id="btnMe" type="button" aria-label="Konumum"><span class="miniIcon">⦿</span></button>
       <button class="miniBtn" id="btnFit" type="button" aria-label="Kanavaya Yaklaş"><span class="miniIcon">◎</span></button>
@@ -59,7 +56,6 @@
     </button>
   </section>
 
-  <!-- Bottom sheet list -->
   <section class="sheet" id="sheet">
     <div class="sheetTop">
       <input id="search" class="search" placeholder="Ara..." autocomplete="off" />
@@ -68,24 +64,6 @@
   </section>
 </div>
 
-<!-- ACTION SHEET (Nokta işlemleri) -->
-<div class="overlay" id="actionOverlay" style="display:none;">
-  <div class="actionSheet" role="dialog" aria-modal="true">
-    <div class="actionTop">
-      <div class="actionTitle" id="actionPoint">-</div>
-      <button class="xBtn" id="btnActionClose" type="button">✕</button>
-    </div>
-    <div class="actionMeta" id="actionMeta">-</div>
-
-    <div class="actionBtns">
-      <button class="aBtn primary" id="btnNav" type="button">Navigasyon</button>
-      <button class="aBtn" id="btnStart" type="button">Kurulum</button>
-      <button class="aBtn" id="btnFinish" type="button">Toplama</button>
-    </div>
-  </div>
-</div>
-
-<!-- FORM MODAL -->
 <div class="overlay" id="formOverlay" style="display:none;">
   <div class="formCard" role="dialog" aria-modal="true">
     <div class="formTop">
@@ -96,7 +74,6 @@
       <button class="xBtn" id="btnFormClose" type="button">✕</button>
     </div>
 
-    <!-- START fields -->
     <div id="startFields">
       <label class="fLabel">Cihaz Adı</label>
       <input class="fInput" id="deviceName" placeholder="Örn: Cent.12" />
@@ -121,7 +98,6 @@
       </div>
     </div>
 
-    <!-- FINISH fields -->
     <div id="finishFields" style="display:none;">
       <div class="row2">
         <div class="col">
@@ -140,7 +116,7 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="app.js?v=SAHA1"></script>
+<script src="app.js?v=SAHA2"></script>
 
 <script
   async
@@ -150,4 +126,3 @@
 
 </body>
 </html>
-
