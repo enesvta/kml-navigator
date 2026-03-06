@@ -27,16 +27,6 @@ const els = {
   search: document.getElementById("search"),
   list: document.getElementById("list"),
 
-  // action sheet
-  actionOverlay: document.getElementById("actionOverlay"),
-  actionPoint: document.getElementById("actionPoint"),
-  actionMeta: document.getElementById("actionMeta"),
-  btnActionClose: document.getElementById("btnActionClose"),
-  btnNav: document.getElementById("btnNav"),
-  btnStart: document.getElementById("btnStart"),
-  btnFinish: document.getElementById("btnFinish"),
-
-  // form
   formOverlay: document.getElementById("formOverlay"),
   formTitle: document.getElementById("formTitle"),
   formPoint: document.getElementById("formPoint"),
@@ -60,23 +50,19 @@ const els = {
 let map = null;
 let points = [];
 let markers = [];
+let markerByName = new Map();
 
 let gpsMarker = null;
 let lastPos = null;
 let watchId = null;
 
 let sheetExpanded = false;
+let selectedPoint = null;
+let formMode = null;
 
-// selected point context
-let selectedPoint = null; // {name, lat, lon, idx}
-
-// form mode
-let formMode = null; // "start" | "finish"
-
-const STORAGE_PREFIX = "cm_saha_records_v1";
+const STORAGE_PREFIX = "cm_saha_records_v2";
 
 function toast(msg){
-  if (!els.toast) return;
   els.toast.textContent = msg;
   els.toast.style.opacity = "1";
   clearTimeout(window.__toastT);
@@ -84,30 +70,25 @@ function toast(msg){
 }
 
 function setStatus(msg){
-  if (els.status) els.status.textContent = msg;
+  els.status.textContent = msg;
 }
 
 function showError(msg){
-  if (!els.pickError) return alert(msg);
   els.pickError.style.display = "block";
   els.pickError.textContent = msg;
 }
 function clearError(){
-  if (!els.pickError) return;
   els.pickError.style.display = "none";
   els.pickError.textContent = "";
 }
 
 function todayKey(){
   const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth()+1).padStart(2,"0");
-  const day = String(d.getDate()).padStart(2,"0");
-  return `${y}-${m}-${day}`;
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
 
 function updateDateChip(){
-  if (els.chipDate) els.chipDate.textContent = todayKey();
+  els.chipDate.textContent = todayKey();
 }
 
 function recordKey(pointName){
@@ -135,111 +116,101 @@ function recordState(pointName){
   return "empty";
 }
 
+function stateText(state, record){
+  if (state === "done") return `Tamamlandı · Baş: ${record?.startTime || "-"} · Bit: ${record?.endTime || "-"}`;
+  if (state === "started") return `Kuruldu · Baş: ${record?.startTime || "-"}`;
+  return "Kayıt yok";
+}
+
 function nowHHMM(){
   const d = new Date();
-  const hh = String(d.getHours()).padStart(2,"0");
-  const mm = String(d.getMinutes()).padStart(2,"0");
-  return `${hh}:${mm}`;
+  return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+}
+
+function validateHHMM(v){
+  return /^([01]\d|2[0-3]):([0-5]\d)$/.test((v || "").trim());
 }
 
 function waitForGoogleMaps(timeoutMs = 12000){
-  return new Promise((resolve,reject)=>{
+  return new Promise((resolve, reject) => {
     const start = Date.now();
-    const t = setInterval(()=>{
+    const t = setInterval(() => {
       const ok = window.__gmapsReady && typeof google !== "undefined" && google.maps;
-      if (ok){ clearInterval(t); resolve(true); }
-      else if (Date.now()-start > timeoutMs){
+      if (ok){
+        clearInterval(t);
+        resolve(true);
+      } else if (Date.now() - start > timeoutMs){
         clearInterval(t);
         reject(new Error("Google Maps yüklenmedi. API key / internet / billing kontrol edin."));
       }
-    },100);
+    }, 100);
   });
 }
 
 function initMap(){
   if (map) return;
-  map = new google.maps.Map(document.getElementById("map"),{
-    center:{lat:39,lng:35},
-    zoom:6,
-    mapTypeId:"satellite",
-    fullscreenControl:false,
-    streetViewControl:false,
-    mapTypeControl:false,
-    clickableIcons:false
+  map = new google.maps.Map(document.getElementById("map"), {
+    center: { lat: 39, lng: 35 },
+    zoom: 6,
+    mapTypeId: "satellite",
+    fullscreenControl: false,
+    streetViewControl: false,
+    mapTypeControl: false,
+    clickableIcons: false,
   });
 }
 
 function parseKml(text){
-  const xml = new DOMParser().parseFromString(text,"application/xml");
+  const xml = new DOMParser().parseFromString(text, "application/xml");
   const parseError = xml.querySelector("parsererror");
   if (parseError) throw new Error("KML parse edilemedi.");
 
-  const placemarks=[...xml.getElementsByTagName("Placemark")];
-  const pts=[];
-  let c=0;
+  const placemarks = [...xml.getElementsByTagName("Placemark")];
+  const pts = [];
+  let c = 0;
 
-  for(const pm of placemarks){
-    const name=(pm.getElementsByTagName("name")[0]?.textContent || `P${c+1}`).trim();
+  for (const pm of placemarks){
+    const name = (pm.getElementsByTagName("name")[0]?.textContent || `P${c+1}`).trim();
 
-    const pointEl=pm.getElementsByTagName("Point")[0];
-    let coordEl=null;
-    if (pointEl) coordEl=pointEl.getElementsByTagName("coordinates")[0];
-    if (!coordEl) coordEl=pm.getElementsByTagName("coordinates")[0];
+    const pointEl = pm.getElementsByTagName("Point")[0];
+    let coordEl = null;
+    if (pointEl) coordEl = pointEl.getElementsByTagName("coordinates")[0];
+    if (!coordEl) coordEl = pm.getElementsByTagName("coordinates")[0];
     if (!coordEl) continue;
 
-    const raw=(coordEl.textContent||"").trim();
+    const raw = (coordEl.textContent || "").trim();
     if (!raw) continue;
 
-    const first=raw.replace(/\n/g," ").split(/\s+/).filter(Boolean)[0];
+    const first = raw.replace(/\n/g, " ").split(/\s+/).filter(Boolean)[0];
     if (!first) continue;
 
-    const parts=first.split(",");
-    if (parts.length<2) continue;
+    const parts = first.split(",");
+    if (parts.length < 2) continue;
 
-    const lon=Number(parts[0]);
-    const lat=Number(parts[1]);
+    const lon = Number(parts[0]);
+    const lat = Number(parts[1]);
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
 
-    pts.push({name,lat,lon});
+    pts.push({ name, lat, lon });
     c++;
   }
+
   return pts;
 }
 
-function clearMarkers(){
-  markers.forEach(m=>m.setMap(null));
-  markers=[];
-}
+function markerSvgForState(state){
+  let fill = "rgba(0,229,255,0.22)";
+  let stroke = "rgba(0,229,255,0.35)";
 
-function fitToKml(force=false){
-  if (!map || !points.length) return;
-  const bounds=new google.maps.LatLngBounds();
-  points.forEach(p=>bounds.extend({lat:p.lat,lng:p.lon}));
-  map.fitBounds(bounds,60);
-
-  if (force){
-    google.maps.event.addListenerOnce(map,"idle",()=>{
-      map.fitBounds(bounds,60);
-    });
+  if (state === "started"){
+    fill = "rgba(34,255,136,0.22)";
+    stroke = "rgba(34,255,136,0.45)";
+  } else if (state === "done"){
+    fill = "rgba(0,229,255,0.24)";
+    stroke = "rgba(0,229,255,0.55)";
   }
-}
 
-/* KML marker: neon pill + crosshair exact */
-function setKmlMarkers(){
-  initMap();
-  clearMarkers();
-
-  const labelStyle = {
-    fontFamily:"ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif",
-    fontSize:"11px",
-    fontWeight:"900",
-    color:"#EAF0FF"
-  };
-
-  points.forEach((p,i)=>{
-    const labelText=(p.name || `${i+1}`).trim();
-
-    const svg=`
+  return `
 <svg xmlns="http://www.w3.org/2000/svg" width="92" height="58" viewBox="0 0 92 58">
   <defs>
     <filter id="s" x="-40%" y="-40%" width="180%" height="180%">
@@ -249,8 +220,8 @@ function setKmlMarkers(){
 
   <g filter="url(#s)">
     <rect x="10" y="8" rx="999" ry="999" width="72" height="24"
-      fill="rgba(0,229,255,0.22)"
-      stroke="rgba(0,229,255,0.35)"
+      fill="${fill}"
+      stroke="${stroke}"
       stroke-width="1"/>
   </g>
 
@@ -260,59 +231,98 @@ function setKmlMarkers(){
   <circle cx="46" cy="48" r="4" fill="rgba(0,0,0,0.30)"/>
   <circle cx="46" cy="48" r="3" fill="rgba(234,240,255,0.98)"/>
 </svg>`;
+}
 
-    const icon={
-      url:"data:image/svg+xml;charset=UTF-8,"+encodeURIComponent(svg),
-      scaledSize:new google.maps.Size(92,58),
-      anchor:new google.maps.Point(46,48),
-      labelOrigin:new google.maps.Point(46,25)
-    };
+function makeMarkerIcon(state){
+  const svg = markerSvgForState(state);
+  return {
+    url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg),
+    scaledSize: new google.maps.Size(92, 58),
+    anchor: new google.maps.Point(46, 48),
+    labelOrigin: new google.maps.Point(46, 25),
+  };
+}
 
-    const m=new google.maps.Marker({
-      position:{lat:p.lat,lng:p.lon},
+function refreshMarkerState(pointName){
+  const m = markerByName.get(pointName);
+  if (!m) return;
+  const state = recordState(pointName);
+  m.setIcon(makeMarkerIcon(state));
+}
+
+function clearMarkers(){
+  markers.forEach(m => m.setMap(null));
+  markers = [];
+  markerByName.clear();
+}
+
+function setKmlMarkers(){
+  initMap();
+  clearMarkers();
+
+  const labelStyle = {
+    fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif",
+    fontSize: "11px",
+    fontWeight: "900",
+    color: "#EAF0FF",
+  };
+
+  points.forEach((p, i) => {
+    const state = recordState(p.name);
+    const m = new google.maps.Marker({
+      position: { lat: p.lat, lng: p.lon },
       map,
-      icon,
-      label:{text:labelText,...labelStyle},
-      title: labelText,
-      zIndex: 1000+i
+      icon: makeMarkerIcon(state),
+      label: { text: p.name, ...labelStyle },
+      title: p.name,
+      zIndex: 1000 + i,
     });
 
-    m.addListener("click",()=>{
-      openActionSheet({ ...p, idx: i });
-    });
-
+    m.addListener("click", () => openNav(p.lat, p.lon));
     markers.push(m);
+    markerByName.set(p.name, m);
   });
 
   fitToKml(true);
 }
 
-/* GPS marker distinct */
+function fitToKml(force = false){
+  if (!map || !points.length) return;
+  const bounds = new google.maps.LatLngBounds();
+  points.forEach(p => bounds.extend({ lat: p.lat, lng: p.lon }));
+  map.fitBounds(bounds, 60);
+
+  if (force){
+    google.maps.event.addListenerOnce(map, "idle", () => {
+      map.fitBounds(bounds, 60);
+    });
+  }
+}
+
 function ensureGps(){
   if (!navigator.geolocation){
-    els.chipGps.textContent="GPS off";
+    els.chipGps.textContent = "GPS off";
     return;
   }
-  if (watchId!=null) return;
+  if (watchId != null) return;
 
   watchId = navigator.geolocation.watchPosition(
-    (pos)=>{
-      const lat=pos.coords.latitude;
-      const lon=pos.coords.longitude;
-      const acc=pos.coords.accuracy;
-      lastPos={lat,lon};
+    (pos) => {
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+      const acc = pos.coords.accuracy;
+      lastPos = { lat, lon };
       els.chipGps.textContent = `±${Math.round(acc)}m`;
 
       if (!map) return;
 
-      const svg=`
+      const svg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 34 34">
   <defs>
     <filter id="s" x="-40%" y="-40%" width="180%" height="180%">
       <feDropShadow dx="0" dy="7" stdDeviation="6" flood-color="rgba(0,0,0,0.45)"/>
     </filter>
   </defs>
-
   <g filter="url(#s)">
     <circle cx="17" cy="17" r="12" fill="rgba(34,255,136,0.10)" stroke="rgba(34,255,136,0.90)" stroke-width="2"/>
   </g>
@@ -320,175 +330,69 @@ function ensureGps(){
   <path d="M17 6 L20 12 L17 11 L14 12 Z" fill="rgba(34,255,136,0.95)"/>
 </svg>`;
 
-      const icon={
-        url:"data:image/svg+xml;charset=UTF-8,"+encodeURIComponent(svg),
-        scaledSize:new google.maps.Size(34,34),
-        anchor:new google.maps.Point(17,17)
+      const icon = {
+        url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg),
+        scaledSize: new google.maps.Size(34, 34),
+        anchor: new google.maps.Point(17, 17),
       };
 
       if (!gpsMarker){
-        gpsMarker=new google.maps.Marker({
-          position:{lat,lng:lon},
+        gpsMarker = new google.maps.Marker({
+          position: { lat, lng: lon },
           map,
           icon,
-          title:"Konumum",
-          zIndex: 999999
+          title: "Konumum",
+          zIndex: 999999,
         });
       } else {
-        gpsMarker.setPosition({lat,lng:lon});
+        gpsMarker.setPosition({ lat, lng: lon });
       }
     },
-    ()=>{
-      els.chipGps.textContent="GPS izin yok";
+    () => {
+      els.chipGps.textContent = "GPS izin yok";
     },
-    { enableHighAccuracy:true, maximumAge:3000, timeout:12000 }
+    { enableHighAccuracy: true, maximumAge: 3000, timeout: 12000 }
   );
 }
 
 function panToMe(){
   if (!map || !lastPos) return;
-  map.setZoom(Math.max(map.getZoom(),17));
-  map.panTo({lat:lastPos.lat,lng:lastPos.lon});
+  map.setZoom(Math.max(map.getZoom(), 17));
+  map.panTo({ lat: lastPos.lat, lng: lastPos.lon });
 }
 
-/* CarPlay navigation */
-function openNav(lat,lon){
-  const schemeUrl=`comgooglemaps://?daddr=${lat},${lon}&directionsmode=driving`;
-  const httpsUrl=`https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=driving`;
-  const t=Date.now();
-  window.location.href=schemeUrl;
-  setTimeout(()=>{
-    if (Date.now()-t>300) window.location.href=httpsUrl;
-  },450);
+function openNav(lat, lon){
+  const schemeUrl = `comgooglemaps://?daddr=${lat},${lon}&directionsmode=driving`;
+  const httpsUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=driving`;
+  const t = Date.now();
+  window.location.href = schemeUrl;
+  setTimeout(() => {
+    if (Date.now() - t > 300) window.location.href = httpsUrl;
+  }, 450);
 }
 
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, m => ({
     "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
-  }[m]));
+  })[m]);
 }
 
-function stateLabel(st){
-  if (st==="done") return "✓";
-  if (st==="started") return "•";
-  return "";
-}
-
-/* LIST */
-function renderList(){
-  const q=(els.search.value||"").trim().toLowerCase();
-  els.list.innerHTML="";
-
-  const filtered = points
-    .map((p,i)=>({...p,i}))
-    .filter(x=>!q || x.name.toLowerCase().includes(q));
-
-  filtered.forEach((p,idx)=>{
-    const st = recordState(p.name);
-
-    const div=document.createElement("div");
-    div.className="item";
-    div.style.opacity="0";
-    div.style.transform="translateY(6px)";
-    div.style.transition=`opacity 220ms var(--ease) ${idx*10}ms, transform 220ms var(--ease) ${idx*10}ms`;
-
-    div.innerHTML=`
-<div>
-  <div class="itemTitle">${escapeHtml(p.name)}</div>
-  <div class="itemSub">${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}</div>
-</div>
-<div class="badges">
-  <span class="stateDot ${st==="started" ? "started" : st==="done" ? "done" : ""}"></span>
-  <span class="badge">${p.i+1}</span>
-</div>
-`;
-
-    div.onclick=()=>{
-      openActionSheet(p);
-    };
-
-    els.list.appendChild(div);
-
-    requestAnimationFrame(()=>{
-      div.style.opacity="1";
-      div.style.transform="translateY(0)";
-    });
-  });
-}
-
-/* SHEET toggle + drag */
-function setSheetState(expanded){
-  sheetExpanded = expanded;
-  if (expanded) els.sheet.classList.add("expanded");
-  else els.sheet.classList.remove("expanded");
-}
-function toggleSheet(){ setSheetState(!sheetExpanded); }
-
-function enableSheetDrag(){
-  let startY=0;
-  let dragging=false;
-
-  const onStart=(y)=>{ dragging=true; startY=y; };
-  const onMove=(y)=>{
-    if (!dragging) return;
-    const dy=y-startY;
-    if (dy<-35) setSheetState(true);
-    if (dy>35) setSheetState(false);
-  };
-  const onEnd=()=>{ dragging=false; };
-
-  els.sheetHandle.addEventListener("click", toggleSheet);
-
-  els.sheetHandle.addEventListener("touchstart", e=>onStart(e.touches[0].clientY), {passive:true});
-  els.sheetHandle.addEventListener("touchmove", e=>onMove(e.touches[0].clientY), {passive:true});
-  els.sheetHandle.addEventListener("touchend", onEnd, {passive:true});
-
-  els.sheet.addEventListener("touchstart", e=>{
-    if (e.touches[0].clientY < 160) onStart(e.touches[0].clientY);
-  }, {passive:true});
-  els.sheet.addEventListener("touchmove", e=>onMove(e.touches[0].clientY), {passive:true});
-  els.sheet.addEventListener("touchend", onEnd, {passive:true});
-}
-
-/* ACTION SHEET */
-function openActionSheet(p){
-  selectedPoint = p;
-
-  const st = recordState(p.name);
-  const rec = loadRecord(p.name);
-  let meta = `Durum: ${st==="done" ? "Tamamlandı" : st==="started" ? "Kuruldu" : "Boş"}`;
-  if (rec?.startTime) meta += ` · Baş: ${rec.startTime}`;
-  if (rec?.endTime) meta += ` · Bit: ${rec.endTime}`;
-
-  els.actionPoint.textContent = p.name;
-  els.actionMeta.textContent = meta;
-
-  // Start/Finish enable logic
-  els.btnStart.disabled = (st === "done"); // done ise start değiştirmesin
-  els.btnFinish.disabled = (!rec?.startTime); // start yoksa finish yok
-
-  els.actionOverlay.style.display = "flex";
-}
-
-function closeActionSheet(){
-  els.actionOverlay.style.display = "none";
-}
-
-function openForm(mode){
+function openForm(mode, point){
+  selectedPoint = point;
   formMode = mode;
-  const p = selectedPoint;
-  const rec = loadRecord(p.name) || {
-    point: p.name,
+
+  const rec = loadRecord(point.name) || {
+    point: point.name,
     date: todayKey(),
     deviceName: "",
     deviceHeight: "",
     loadType: "Jalon",
     startTime: "",
     endTime: "",
-    updatedAt: Date.now()
+    updatedAt: Date.now(),
   };
 
-  els.formPoint.textContent = `${p.name} · ${todayKey()}`;
+  els.formPoint.textContent = `${point.name} · ${todayKey()}`;
 
   if (mode === "start"){
     els.formTitle.textContent = "Kurulum Kaydı";
@@ -503,7 +407,6 @@ function openForm(mode){
     els.formTitle.textContent = "Toplama Kaydı";
     els.startFields.style.display = "none";
     els.finishFields.style.display = "block";
-
     els.endTime.value = rec.endTime || "";
   }
 
@@ -514,25 +417,18 @@ function closeForm(){
   els.formOverlay.style.display = "none";
 }
 
-function validateHHMM(v){
-  // basic HH:MM
-  const m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec((v||"").trim());
-  return !!m;
-}
-
 function saveForm(){
-  const p = selectedPoint;
-  if (!p) return;
+  if (!selectedPoint) return;
 
-  const existing = loadRecord(p.name) || {
-    point: p.name,
+  const existing = loadRecord(selectedPoint.name) || {
+    point: selectedPoint.name,
     date: todayKey(),
     deviceName: "",
     deviceHeight: "",
     loadType: "Jalon",
     startTime: "",
     endTime: "",
-    updatedAt: Date.now()
+    updatedAt: Date.now(),
   };
 
   if (formMode === "start"){
@@ -553,19 +449,86 @@ function saveForm(){
   } else {
     const et = (els.endTime.value || "").trim();
     if (!validateHHMM(et)) return toast("Bitiş saati HH:MM");
+
     existing.endTime = et;
     existing.updatedAt = Date.now();
   }
 
-  saveRecord(p.name, existing);
-  toast("Kaydedildi");
-
-  closeForm();
-  closeActionSheet();
+  saveRecord(selectedPoint.name, existing);
+  refreshMarkerState(selectedPoint.name);
   renderList();
+  closeForm();
+  toast("Kaydedildi");
 }
 
-/* EXPORT CSV */
+function renderList(){
+  const q = (els.search.value || "").trim().toLowerCase();
+  els.list.innerHTML = "";
+
+  const filtered = points
+    .map((p, i) => ({ ...p, i }))
+    .filter(x => !q || x.name.toLowerCase().includes(q));
+
+  filtered.forEach((p) => {
+    const rec = loadRecord(p.name);
+    const st = recordState(p.name);
+
+    const div = document.createElement("div");
+    div.className = `item main-${st}`;
+
+    div.innerHTML = `
+<div class="itemInfo">
+  <div class="itemTitle">${escapeHtml(p.name)}</div>
+  <div class="itemSub">${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}</div>
+  <div class="itemState">
+    <span class="stateDot ${st === "started" ? "started" : st === "done" ? "done" : ""}"></span>
+    ${escapeHtml(stateText(st, rec))}
+  </div>
+</div>
+<div class="itemActions">
+  <div class="rowBtns">
+    <button class="smallBtn nav" data-nav="${p.i}">Nav</button>
+    <button class="smallBtn start" data-start="${p.i}" ${st === "done" ? "disabled" : ""}>Kurulum</button>
+  </div>
+  <div class="rowBtns">
+    <button class="smallBtn finish" data-finish="${p.i}" ${!rec?.startTime ? "disabled" : ""}>Toplama</button>
+  </div>
+</div>
+`;
+
+    els.list.appendChild(div);
+  });
+
+  els.list.querySelectorAll("[data-nav]").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const i = Number(btn.getAttribute("data-nav"));
+      const p = points[i];
+      if (map){
+        map.setZoom(Math.max(map.getZoom(), 17));
+        map.panTo({ lat: p.lat, lng: p.lon });
+      }
+      openNav(p.lat, p.lon);
+    });
+  });
+
+  els.list.querySelectorAll("[data-start]").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const i = Number(btn.getAttribute("data-start"));
+      openForm("start", points[i]);
+    });
+  });
+
+  els.list.querySelectorAll("[data-finish]").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const i = Number(btn.getAttribute("data-finish"));
+      openForm("finish", points[i]);
+    });
+  });
+}
+
 function exportCSV(){
   const date = todayKey();
   const rows = [];
@@ -574,16 +537,15 @@ function exportCSV(){
   for (const p of points){
     const r = loadRecord(p.name);
     if (!r) continue;
-    const line = [
+    rows.push([
       date,
       r.point || p.name,
       (r.deviceName || "").replaceAll(","," "),
       (r.deviceHeight || "").replaceAll(","," "),
       (r.loadType || "").replaceAll(","," "),
-      (r.startTime || ""),
-      (r.endTime || "")
-    ].join(",");
-    rows.push(line);
+      r.startTime || "",
+      r.endTime || ""
+    ].join(","));
   }
 
   if (rows.length === 1) return toast("Kayıt yok");
@@ -603,7 +565,47 @@ function exportCSV(){
   toast("CSV indirildi");
 }
 
-/* MAIN FLOW */
+function setSheetState(expanded){
+  sheetExpanded = expanded;
+  if (expanded) els.sheet.classList.add("expanded");
+  else els.sheet.classList.remove("expanded");
+}
+
+function toggleSheet(){
+  setSheetState(!sheetExpanded);
+}
+
+function enableSheetDrag(){
+  let startY = 0;
+  let dragging = false;
+
+  const onStart = (y) => {
+    dragging = true;
+    startY = y;
+  };
+  const onMove = (y) => {
+    if (!dragging) return;
+    const dy = y - startY;
+    if (dy < -35) setSheetState(true);
+    if (dy > 35) setSheetState(false);
+  };
+  const onEnd = () => {
+    dragging = false;
+  };
+
+  els.sheetHandle.addEventListener("click", toggleSheet);
+
+  els.sheetHandle.addEventListener("touchstart", e => onStart(e.touches[0].clientY), { passive: true });
+  els.sheetHandle.addEventListener("touchmove", e => onMove(e.touches[0].clientY), { passive: true });
+  els.sheetHandle.addEventListener("touchend", onEnd, { passive: true });
+
+  els.sheet.addEventListener("touchstart", e => {
+    if (e.touches[0].clientY < 160) onStart(e.touches[0].clientY);
+  }, { passive: true });
+  els.sheet.addEventListener("touchmove", e => onMove(e.touches[0].clientY), { passive: true });
+  els.sheet.addEventListener("touchend", onEnd, { passive: true });
+}
+
 async function handleKmlFile(file){
   clearError();
   setStatus("Yükleniyor…");
@@ -622,14 +624,13 @@ async function handleKmlFile(file){
   els.chipCount.textContent = String(points.length);
   setStatus(`Hazır: ${points.length} nokta`);
 
-  els.screenPick.style.display="none";
-  els.screenMain.style.display="flex";
+  els.screenPick.style.display = "none";
+  els.screenMain.style.display = "flex";
   toast("Yüklendi");
 }
 
-/* EVENTS */
-els.fileInput.addEventListener("change", async (e)=>{
-  const f=e.target.files?.[0];
+els.fileInput.addEventListener("change", async (e) => {
+  const f = e.target.files?.[0];
   if (!f) return;
   try{
     await handleKmlFile(f);
@@ -637,62 +638,51 @@ els.fileInput.addEventListener("change", async (e)=>{
     console.error(err);
     showError(err.message || "Hata");
   }finally{
-    els.fileInput.value="";
+    els.fileInput.value = "";
   }
 });
 
-els.btnKml.addEventListener("click", ()=>els.fileInput.click());
-els.btnMe.addEventListener("click", ()=>panToMe());
-els.btnFit.addEventListener("click", ()=>fitToKml(true));
+els.btnKml.addEventListener("click", () => els.fileInput.click());
+els.btnMe.addEventListener("click", panToMe);
+els.btnFit.addEventListener("click", () => fitToKml(true));
 els.btnExport.addEventListener("click", exportCSV);
 
-els.btnClear.addEventListener("click", ()=>{
+els.btnClear.addEventListener("click", () => {
   clearMarkers();
-  if (gpsMarker) gpsMarker.setMap(null), gpsMarker=null;
-  if (watchId!=null) navigator.geolocation.clearWatch(watchId), watchId=null;
-  points=[];
-  els.list.innerHTML="";
-  els.search.value="";
-  els.chipCount.textContent="0";
-  els.chipGps.textContent="GPS";
+  if (gpsMarker) gpsMarker.setMap(null), gpsMarker = null;
+  if (watchId != null) navigator.geolocation.clearWatch(watchId), watchId = null;
+
+  points = [];
+  els.list.innerHTML = "";
+  els.search.value = "";
+  els.chipCount.textContent = "0";
+  els.chipGps.textContent = "GPS";
   setStatus("KML yükleyin");
-  els.screenMain.style.display="none";
-  els.screenPick.style.display="flex";
+
+  els.screenMain.style.display = "none";
+  els.screenPick.style.display = "flex";
 });
 
 els.search.addEventListener("input", renderList);
 
-els.sheetHandle.addEventListener("click", ()=>toggleSheet());
+els.btnFormClose.addEventListener("click", closeForm);
+els.formOverlay.addEventListener("click", (e) => {
+  if (e.target === els.formOverlay) closeForm();
+});
+
+els.btnNowStart.addEventListener("click", () => {
+  els.startTime.value = nowHHMM();
+});
+els.btnNowEnd.addEventListener("click", () => {
+  els.endTime.value = nowHHMM();
+});
+els.btnFormSave.addEventListener("click", saveForm);
 
 enableSheetDrag();
 setSheetState(false);
 setStatus("KML yükleyin");
 updateDateChip();
 
-/* Action sheet buttons */
-els.btnActionClose.addEventListener("click", closeActionSheet);
-els.actionOverlay.addEventListener("click", (e)=>{
-  if (e.target === els.actionOverlay) closeActionSheet();
-});
-
-els.btnNav.addEventListener("click", ()=>{
-  if (!selectedPoint) return;
-  openNav(selectedPoint.lat, selectedPoint.lon);
-});
-els.btnStart.addEventListener("click", ()=>openForm("start"));
-els.btnFinish.addEventListener("click", ()=>openForm("finish"));
-
-/* Form buttons */
-els.btnFormClose.addEventListener("click", closeForm);
-els.formOverlay.addEventListener("click", (e)=>{
-  if (e.target === els.formOverlay) closeForm();
-});
-els.btnFormSave.addEventListener("click", saveForm);
-
-els.btnNowStart.addEventListener("click", ()=>{ els.startTime.value = nowHHMM(); });
-els.btnNowEnd.addEventListener("click", ()=>{ els.endTime.value = nowHHMM(); });
-
-/* Service worker */
 if ("serviceWorker" in navigator){
-  navigator.serviceWorker.register("./sw.js").catch(()=>{});
+  navigator.serviceWorker.register("./sw.js").catch(() => {});
 }
