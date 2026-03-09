@@ -77,6 +77,7 @@ function showError(msg){
   els.pickError.style.display = "block";
   els.pickError.textContent = msg;
 }
+
 function clearError(){
   els.pickError.style.display = "none";
   els.pickError.textContent = "";
@@ -84,7 +85,7 @@ function clearError(){
 
 function todayKey(){
   const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function updateDateChip(){
@@ -124,7 +125,7 @@ function stateText(state, record){
 
 function nowHHMM(){
   const d = new Date();
-  return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
 function validateHHMM(v){
@@ -170,10 +171,11 @@ function parseKml(text){
   let c = 0;
 
   for (const pm of placemarks){
-    const name = (pm.getElementsByTagName("name")[0]?.textContent || `P${c+1}`).trim();
+    const name = (pm.getElementsByTagName("name")[0]?.textContent || `P${c + 1}`).trim();
 
     const pointEl = pm.getElementsByTagName("Point")[0];
     let coordEl = null;
+
     if (pointEl) coordEl = pointEl.getElementsByTagName("coordinates")[0];
     if (!coordEl) coordEl = pm.getElementsByTagName("coordinates")[0];
     if (!coordEl) continue;
@@ -199,15 +201,18 @@ function parseKml(text){
 }
 
 function markerSvgForState(state){
-  let fill = "rgba(0,229,255,0.22)";
-  let stroke = "rgba(0,229,255,0.35)";
+  let centerDot = "rgba(234,240,255,0.98)";
+  let centerDotStroke = "rgba(0,0,0,0.30)";
+  let crossColor = "rgba(234,240,255,0.95)";
 
   if (state === "started"){
-    fill = "rgba(34,255,136,0.22)";
-    stroke = "rgba(34,255,136,0.45)";
+    centerDot = "rgba(34,255,136,0.98)";
+    centerDotStroke = "rgba(8,40,20,0.55)";
+    crossColor = "rgba(210,255,228,0.98)";
   } else if (state === "done"){
-    fill = "rgba(0,229,255,0.24)";
-    stroke = "rgba(0,229,255,0.55)";
+    centerDot = "rgba(0,229,255,0.98)";
+    centerDotStroke = "rgba(0,40,48,0.55)";
+    crossColor = "rgba(220,248,255,0.98)";
   }
 
   return `
@@ -218,18 +223,11 @@ function markerSvgForState(state){
     </filter>
   </defs>
 
-  <g filter="url(#s)">
-    <rect x="10" y="8" rx="999" ry="999" width="72" height="24"
-      fill="${fill}"
-      stroke="${stroke}"
-      stroke-width="1"/>
-  </g>
+  <line x1="46" y1="36" x2="46" y2="56" stroke="${crossColor}" stroke-width="2" stroke-linecap="round"/>
+  <line x1="36" y1="48" x2="56" y2="48" stroke="${crossColor}" stroke-width="2" stroke-linecap="round"/>
 
-  <line x1="46" y1="36" x2="46" y2="56" stroke="rgba(234,240,255,0.95)" stroke-width="2" stroke-linecap="round"/>
-  <line x1="36" y1="48" x2="56" y2="48" stroke="rgba(234,240,255,0.95)" stroke-width="2" stroke-linecap="round"/>
-
-  <circle cx="46" cy="48" r="4" fill="rgba(0,0,0,0.30)"/>
-  <circle cx="46" cy="48" r="3" fill="rgba(234,240,255,0.98)"/>
+  <circle cx="46" cy="48" r="4.2" fill="${centerDotStroke}"/>
+  <circle cx="46" cy="48" r="3.2" fill="${centerDot}"/>
 </svg>`;
 }
 
@@ -262,7 +260,7 @@ function setKmlMarkers(){
 
   const labelStyle = {
     fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif",
-    fontSize: "11px",
+    fontSize: "12px",
     fontWeight: "900",
     color: "#EAF0FF",
   };
@@ -373,7 +371,11 @@ function openNav(lat, lon){
 
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, m => ({
-    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;",
   })[m]);
 }
 
@@ -532,7 +534,7 @@ function renderList(){
 function exportCSV(){
   const date = todayKey();
   const rows = [];
-  rows.push(["Tarih","Nokta","CihazAdı","CihazYüksekliği","YükTipi","Başlangıç","Bitiş"].join(","));
+  rows.push(["Tarih", "Nokta", "CihazAdı", "CihazYüksekliği", "YükTipi", "Başlangıç", "Bitiş"].join(","));
 
   for (const p of points){
     const r = loadRecord(p.name);
@@ -540,9 +542,9 @@ function exportCSV(){
     rows.push([
       date,
       r.point || p.name,
-      (r.deviceName || "").replaceAll(","," "),
-      (r.deviceHeight || "").replaceAll(","," "),
-      (r.loadType || "").replaceAll(","," "),
+      (r.deviceName || "").replaceAll(",", " "),
+      (r.deviceHeight || "").replaceAll(",", " "),
+      (r.loadType || "").replaceAll(",", " "),
       r.startTime || "",
       r.endTime || ""
     ].join(","));
@@ -583,12 +585,14 @@ function enableSheetDrag(){
     dragging = true;
     startY = y;
   };
+
   const onMove = (y) => {
     if (!dragging) return;
     const dy = y - startY;
     if (dy < -35) setSheetState(true);
     if (dy > 35) setSheetState(false);
   };
+
   const onEnd = () => {
     dragging = false;
   };
@@ -602,6 +606,7 @@ function enableSheetDrag(){
   els.sheet.addEventListener("touchstart", e => {
     if (e.touches[0].clientY < 160) onStart(e.touches[0].clientY);
   }, { passive: true });
+
   els.sheet.addEventListener("touchmove", e => onMove(e.touches[0].clientY), { passive: true });
   els.sheet.addEventListener("touchend", onEnd, { passive: true });
 }
@@ -614,6 +619,7 @@ async function handleKmlFile(file){
 
   const text = await file.text();
   points = parseKml(text);
+
   if (!points.length) throw new Error("KML içinde nokta bulunamadı.");
 
   initMap();
@@ -632,6 +638,7 @@ async function handleKmlFile(file){
 els.fileInput.addEventListener("change", async (e) => {
   const f = e.target.files?.[0];
   if (!f) return;
+
   try{
     await handleKmlFile(f);
   }catch(err){
@@ -649,8 +656,16 @@ els.btnExport.addEventListener("click", exportCSV);
 
 els.btnClear.addEventListener("click", () => {
   clearMarkers();
-  if (gpsMarker) gpsMarker.setMap(null), gpsMarker = null;
-  if (watchId != null) navigator.geolocation.clearWatch(watchId), watchId = null;
+
+  if (gpsMarker){
+    gpsMarker.setMap(null);
+    gpsMarker = null;
+  }
+
+  if (watchId != null){
+    navigator.geolocation.clearWatch(watchId);
+    watchId = null;
+  }
 
   points = [];
   els.list.innerHTML = "";
@@ -673,9 +688,11 @@ els.formOverlay.addEventListener("click", (e) => {
 els.btnNowStart.addEventListener("click", () => {
   els.startTime.value = nowHHMM();
 });
+
 els.btnNowEnd.addEventListener("click", () => {
   els.endTime.value = nowHHMM();
 });
+
 els.btnFormSave.addEventListener("click", saveForm);
 
 enableSheetDrag();
