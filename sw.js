@@ -1,4 +1,4 @@
-const CACHE = "central-saha-v211";
+const CACHE = "central-saha-2v2";
 
 const BASE = new URL("./", self.location).pathname.replace(/\/$/, "");
 const ASSETS = [
