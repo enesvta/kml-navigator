@@ -6,9 +6,9 @@
   <meta name="theme-color" content="#070A12" />
   <title>CENTRAL MUHENDISLIK</title>
 
-  <link rel="manifest" href="manifest.webmanifest?v=SAHA4" />
+  <link rel="manifest" href="manifest.webmanifest?v=SAHA5" />
   <link rel="apple-touch-icon" href="icons/logo.jpg" />
-  <link rel="stylesheet" href="style.css?v=SAHA4" />
+  <link rel="stylesheet" href="style.css?v=SAHA5" />
 </head>
 <body>
 
@@ -99,28 +99,28 @@
       </select>
 
       <label class="fLabel">Cihaz Yüksekliği (m)</label>
-      <select class="fInput" id="deviceHeight">
-        <option value="">Yükseklik seçin</option>
-        <option value="1.000">1.000</option>
-        <option value="1.100">1.100</option>
-        <option value="1.200">1.200</option>
-        <option value="1.250">1.250</option>
-        <option value="1.300">1.300</option>
-        <option value="1.350">1.350</option>
-        <option value="1.400">1.400</option>
-        <option value="1.450">1.450</option>
-        <option value="1.500">1.500</option>
-        <option value="1.550">1.550</option>
-        <option value="1.600">1.600</option>
-        <option value="1.650">1.650</option>
-        <option value="1.700">1.700</option>
-        <option value="1.750">1.750</option>
-        <option value="1.800">1.800</option>
-        <option value="1.850">1.850</option>
-        <option value="1.900">1.900</option>
-        <option value="1.950">1.950</option>
-        <option value="2.000">2.000</option>
-      </select>
+      <div class="heightCard">
+        <div class="heightTop">
+          <span class="heightHint">Seçilen yükseklik</span>
+          <span class="heightValue" id="deviceHeightValue">1.280 m</span>
+        </div>
+
+        <input
+          class="heightRange"
+          id="deviceHeight"
+          type="range"
+          min="1.000"
+          max="2.500"
+          step="0.001"
+          value="1.280"
+        />
+
+        <div class="heightScale">
+          <span>1.000</span>
+          <span>1.750</span>
+          <span>2.500</span>
+        </div>
+      </div>
 
       <label class="fLabel">Yük Tipi</label>
       <select class="fInput" id="loadType">
@@ -157,7 +157,7 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="app.js?v=SAHA4"></script>
+<script src="app.js?v=SAHA5"></script>
 <script
   async
   defer
