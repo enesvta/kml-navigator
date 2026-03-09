@@ -47,6 +47,27 @@ const els = {
   toast: document.getElementById("toast"),
 };
 
+const DEVICE_OPTIONS = [
+  "CHC183",
+  "CM1",
+  "CM2",
+  "CM3",
+  "CM4",
+  "CM5",
+  "CM6",
+  "CM7",
+  "CM8",
+  "CM9",
+  "CM10",
+  "CM11",
+  "CM12",
+  "CM13",
+  "CM14",
+  "CM15",
+  "I83",
+  "LECIA"
+];
+
 let map = null;
 let points = [];
 let markers = [];
@@ -66,7 +87,9 @@ function toast(msg){
   els.toast.textContent = msg;
   els.toast.style.opacity = "1";
   clearTimeout(window.__toastT);
-  window.__toastT = setTimeout(() => els.toast.style.opacity = "0", 1400);
+  window.__toastT = setTimeout(() => {
+    els.toast.style.opacity = "0";
+  }, 1400);
 }
 
 function setStatus(msg){
@@ -379,6 +402,13 @@ function escapeHtml(s){
   })[m]);
 }
 
+function normalizeDeviceValue(v){
+  const value = String(v || "").trim().toUpperCase();
+  if (!value) return "";
+  const match = DEVICE_OPTIONS.find(x => x.toUpperCase() === value);
+  return match || "";
+}
+
 function openForm(mode, point){
   selectedPoint = point;
   formMode = mode;
@@ -401,7 +431,7 @@ function openForm(mode, point){
     els.startFields.style.display = "block";
     els.finishFields.style.display = "none";
 
-    els.deviceName.value = rec.deviceName || "";
+    els.deviceName.value = normalizeDeviceValue(rec.deviceName);
     els.deviceHeight.value = rec.deviceHeight || "";
     els.loadType.value = rec.loadType || "Jalon";
     els.startTime.value = rec.startTime || "";
@@ -434,12 +464,12 @@ function saveForm(){
   };
 
   if (formMode === "start"){
-    const dn = (els.deviceName.value || "").trim();
+    const dn = normalizeDeviceValue(els.deviceName.value);
     const dh = (els.deviceHeight.value || "").trim();
     const lt = els.loadType.value || "Jalon";
     const st = (els.startTime.value || "").trim();
 
-    if (!dn) return toast("Cihaz adı gerekli");
+    if (!dn) return toast("Cihaz seçin");
     if (!dh) return toast("Yükseklik gerekli");
     if (!validateHHMM(st)) return toast("Başlangıç saati HH:MM");
 
@@ -489,11 +519,11 @@ function renderList(){
 </div>
 <div class="itemActions">
   <div class="rowBtns">
-    <button class="smallBtn nav" data-nav="${p.i}">Nav</button>
-    <button class="smallBtn start" data-start="${p.i}" ${st === "done" ? "disabled" : ""}>Kurulum</button>
+    <button class="smallBtn nav" data-nav="${p.i}" type="button">Nav</button>
+    <button class="smallBtn start" data-start="${p.i}" type="button" ${st === "done" ? "disabled" : ""}>Kurulum</button>
   </div>
   <div class="rowBtns">
-    <button class="smallBtn finish" data-finish="${p.i}" ${!rec?.startTime ? "disabled" : ""}>Toplama</button>
+    <button class="smallBtn finish" data-finish="${p.i}" type="button" ${!rec?.startTime ? "disabled" : ""}>Toplama</button>
   </div>
 </div>
 `;
@@ -506,10 +536,6 @@ function renderList(){
       e.stopPropagation();
       const i = Number(btn.getAttribute("data-nav"));
       const p = points[i];
-      if (map){
-        map.setZoom(Math.max(map.getZoom(), 17));
-        map.panTo({ lat: p.lat, lng: p.lon });
-      }
       openNav(p.lat, p.lon);
     });
   });
