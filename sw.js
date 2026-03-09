@@ -1,4 +1,4 @@
-const CACHE = "central-saha-2v2";
+const CACHE = "central-saha-v244";
 
 const BASE = new URL("./", self.location).pathname.replace(/\/$/, "");
 const ASSETS = [
@@ -30,3 +30,4 @@ self.addEventListener("fetch", (e) => {
     caches.match(e.request).then(cached => cached || fetch(e.request).catch(() => caches.match(`${BASE}/index.html`)))
   );
 });
+
