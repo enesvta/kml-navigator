@@ -39,6 +39,8 @@ const els = {
   deviceName: document.getElementById("deviceName"),
   deviceHeight: document.getElementById("deviceHeight"),
   deviceHeightValue: document.getElementById("deviceHeightValue"),
+  btnHeightDown: document.getElementById("btnHeightDown"),
+  btnHeightUp: document.getElementById("btnHeightUp"),
   loadType: document.getElementById("loadType"),
   startTime: document.getElementById("startTime"),
   endTime: document.getElementById("endTime"),
@@ -84,7 +86,7 @@ let formMode = null;
 
 let sessionStoragePrefix = "";
 
-const STORAGE_PREFIX = "cm_saha_records_v5";
+const STORAGE_PREFIX = "cm_saha_records_v6";
 
 function toast(msg){
   els.toast.textContent = msg;
@@ -176,12 +178,25 @@ function validateHHMM(v){
 function formatHeight(v){
   const n = Number(v);
   if (!Number.isFinite(n)) return "";
-  return n.toFixed(3);
+  return n.toFixed(2);
 }
 
 function updateHeightPreview(value){
-  const txt = formatHeight(value) || "1.280";
+  const txt = formatHeight(value) || "1.35";
   els.deviceHeightValue.textContent = `${txt} m`;
+}
+
+function clampHeight(value){
+  const min = Number(els.deviceHeight.min);
+  const max = Number(els.deviceHeight.max);
+  return Math.min(max, Math.max(min, value));
+}
+
+function changeHeightBy(delta){
+  const current = Number(els.deviceHeight.value);
+  const next = clampHeight(current + delta);
+  els.deviceHeight.value = next.toFixed(2);
+  updateHeightPreview(els.deviceHeight.value);
 }
 
 function waitForGoogleMaps(timeoutMs = 12000){
@@ -428,7 +443,7 @@ function normalizeHeightValue(v){
   const txt = formatHeight(v);
   if (!txt) return "";
   const n = Number(txt);
-  if (n < 1.000 || n > 2.500) return "";
+  if (n < 1.00 || n > 2.50) return "";
   return txt;
 }
 
@@ -440,7 +455,7 @@ function openForm(mode, point){
     point: point.name,
     date: todayKey(),
     deviceName: "",
-    deviceHeight: "1.280",
+    deviceHeight: "1.35",
     loadType: "Jalon",
     startTime: "",
     endTime: "",
@@ -455,7 +470,7 @@ function openForm(mode, point){
     els.finishFields.style.display = "none";
 
     els.deviceName.value = normalizeDeviceValue(rec.deviceName);
-    els.deviceHeight.value = normalizeHeightValue(rec.deviceHeight) || "1.280";
+    els.deviceHeight.value = normalizeHeightValue(rec.deviceHeight) || "1.35";
     updateHeightPreview(els.deviceHeight.value);
     els.loadType.value = rec.loadType || "Jalon";
     els.startTime.value = rec.startTime || "";
@@ -480,7 +495,7 @@ function saveForm(){
     point: selectedPoint.name,
     date: todayKey(),
     deviceName: "",
-    deviceHeight: "1.280",
+    deviceHeight: "1.35",
     loadType: "Jalon",
     startTime: "",
     endTime: "",
@@ -806,6 +821,14 @@ els.btnFormSave.addEventListener("click", saveForm);
 
 els.deviceHeight.addEventListener("input", () => {
   updateHeightPreview(els.deviceHeight.value);
+});
+
+els.btnHeightDown.addEventListener("click", () => {
+  changeHeightBy(-0.01);
+});
+
+els.btnHeightUp.addEventListener("click", () => {
+  changeHeightBy(0.01);
 });
 
 enableSheetDrag();
