@@ -6,7 +6,15 @@
   "background_color": "#070A12",
   "theme_color": "#070A12",
   "icons": [
-    { "src": "icons/logo.jpg", "sizes": "192x192", "type": "image/jpeg" },
-    { "src": "icons/logo.jpg", "sizes": "512x512", "type": "image/jpeg" }
+    {
+      "src": "icons/logo.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg"
+    },
+    {
+      "src": "icons/logo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    }
   ]
 }
