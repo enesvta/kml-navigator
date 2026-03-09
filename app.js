@@ -84,7 +84,7 @@ let formMode = null;
 
 let sessionStoragePrefix = "";
 
-const STORAGE_PREFIX = "cm_saha_records_v4";
+const STORAGE_PREFIX = "cm_saha_records_v5";
 
 function toast(msg){
   els.toast.textContent = msg;
