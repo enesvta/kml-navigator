@@ -38,6 +38,7 @@ const els = {
 
   deviceName: document.getElementById("deviceName"),
   deviceHeight: document.getElementById("deviceHeight"),
+  deviceHeightValue: document.getElementById("deviceHeightValue"),
   loadType: document.getElementById("loadType"),
   startTime: document.getElementById("startTime"),
   endTime: document.getElementById("endTime"),
@@ -81,7 +82,9 @@ let sheetExpanded = false;
 let selectedPoint = null;
 let formMode = null;
 
-const STORAGE_PREFIX = "cm_saha_records_v2";
+let sessionStoragePrefix = "";
+
+const STORAGE_PREFIX = "cm_saha_records_v4";
 
 function toast(msg){
   els.toast.textContent = msg;
@@ -89,7 +92,7 @@ function toast(msg){
   clearTimeout(window.__toastT);
   window.__toastT = setTimeout(() => {
     els.toast.style.opacity = "0";
-  }, 1400);
+  }, 1500);
 }
 
 function setStatus(msg){
@@ -115,8 +118,12 @@ function updateDateChip(){
   els.chipDate.textContent = todayKey();
 }
 
+function makeSessionId(){
+  return `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
 function recordKey(pointName){
-  return `${STORAGE_PREFIX}:${todayKey()}:${pointName}`;
+  return `${STORAGE_PREFIX}:${sessionStoragePrefix}:${todayKey()}:${pointName}`;
 }
 
 function loadRecord(pointName){
@@ -130,6 +137,17 @@ function loadRecord(pointName){
 
 function saveRecord(pointName, data){
   localStorage.setItem(recordKey(pointName), JSON.stringify(data));
+}
+
+function deleteRecord(pointName){
+  localStorage.removeItem(recordKey(pointName));
+}
+
+function clearCurrentSessionRecords(){
+  if (!sessionStoragePrefix || !points.length) return;
+  for (const p of points){
+    deleteRecord(p.name);
+  }
 }
 
 function recordState(pointName){
@@ -153,6 +171,17 @@ function nowHHMM(){
 
 function validateHHMM(v){
   return /^([01]\d|2[0-3]):([0-5]\d)$/.test((v || "").trim());
+}
+
+function formatHeight(v){
+  const n = Number(v);
+  if (!Number.isFinite(n)) return "";
+  return n.toFixed(3);
+}
+
+function updateHeightPreview(value){
+  const txt = formatHeight(value) || "1.280";
+  els.deviceHeightValue.textContent = `${txt} m`;
 }
 
 function waitForGoogleMaps(timeoutMs = 12000){
@@ -240,15 +269,8 @@ function markerSvgForState(state){
 
   return `
 <svg xmlns="http://www.w3.org/2000/svg" width="92" height="58" viewBox="0 0 92 58">
-  <defs>
-    <filter id="s" x="-40%" y="-40%" width="180%" height="180%">
-      <feDropShadow dx="0" dy="7" stdDeviation="6" flood-color="rgba(0,0,0,0.45)"/>
-    </filter>
-  </defs>
-
   <line x1="46" y1="36" x2="46" y2="56" stroke="${crossColor}" stroke-width="2" stroke-linecap="round"/>
   <line x1="36" y1="48" x2="56" y2="48" stroke="${crossColor}" stroke-width="2" stroke-linecap="round"/>
-
   <circle cx="46" cy="48" r="4.2" fill="${centerDotStroke}"/>
   <circle cx="46" cy="48" r="3.2" fill="${centerDot}"/>
 </svg>`;
@@ -339,14 +361,7 @@ function ensureGps(){
 
       const svg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 34 34">
-  <defs>
-    <filter id="s" x="-40%" y="-40%" width="180%" height="180%">
-      <feDropShadow dx="0" dy="7" stdDeviation="6" flood-color="rgba(0,0,0,0.45)"/>
-    </filter>
-  </defs>
-  <g filter="url(#s)">
-    <circle cx="17" cy="17" r="12" fill="rgba(34,255,136,0.10)" stroke="rgba(34,255,136,0.90)" stroke-width="2"/>
-  </g>
+  <circle cx="17" cy="17" r="12" fill="rgba(34,255,136,0.10)" stroke="rgba(34,255,136,0.90)" stroke-width="2"/>
   <circle cx="17" cy="17" r="4.2" fill="rgba(34,255,136,0.95)" stroke="rgba(0,0,0,0.55)" stroke-width="1"/>
   <path d="M17 6 L20 12 L17 11 L14 12 Z" fill="rgba(34,255,136,0.95)"/>
 </svg>`;
@@ -409,6 +424,14 @@ function normalizeDeviceValue(v){
   return match || "";
 }
 
+function normalizeHeightValue(v){
+  const txt = formatHeight(v);
+  if (!txt) return "";
+  const n = Number(txt);
+  if (n < 1.000 || n > 2.500) return "";
+  return txt;
+}
+
 function openForm(mode, point){
   selectedPoint = point;
   formMode = mode;
@@ -417,7 +440,7 @@ function openForm(mode, point){
     point: point.name,
     date: todayKey(),
     deviceName: "",
-    deviceHeight: "",
+    deviceHeight: "1.280",
     loadType: "Jalon",
     startTime: "",
     endTime: "",
@@ -427,16 +450,17 @@ function openForm(mode, point){
   els.formPoint.textContent = `${point.name} · ${todayKey()}`;
 
   if (mode === "start"){
-    els.formTitle.textContent = "Kurulum Kaydı";
+    els.formTitle.textContent = rec.startTime ? "Kurulum Kaydı Düzenle" : "Kurulum Kaydı";
     els.startFields.style.display = "block";
     els.finishFields.style.display = "none";
 
     els.deviceName.value = normalizeDeviceValue(rec.deviceName);
-    els.deviceHeight.value = rec.deviceHeight || "";
+    els.deviceHeight.value = normalizeHeightValue(rec.deviceHeight) || "1.280";
+    updateHeightPreview(els.deviceHeight.value);
     els.loadType.value = rec.loadType || "Jalon";
     els.startTime.value = rec.startTime || "";
   } else {
-    els.formTitle.textContent = "Toplama Kaydı";
+    els.formTitle.textContent = rec.endTime ? "Toplama Kaydı Düzenle" : "Toplama Kaydı";
     els.startFields.style.display = "none";
     els.finishFields.style.display = "block";
     els.endTime.value = rec.endTime || "";
@@ -456,7 +480,7 @@ function saveForm(){
     point: selectedPoint.name,
     date: todayKey(),
     deviceName: "",
-    deviceHeight: "",
+    deviceHeight: "1.280",
     loadType: "Jalon",
     startTime: "",
     endTime: "",
@@ -465,12 +489,12 @@ function saveForm(){
 
   if (formMode === "start"){
     const dn = normalizeDeviceValue(els.deviceName.value);
-    const dh = (els.deviceHeight.value || "").trim();
+    const dh = normalizeHeightValue(els.deviceHeight.value);
     const lt = els.loadType.value || "Jalon";
     const st = (els.startTime.value || "").trim();
 
     if (!dn) return toast("Cihaz seçin");
-    if (!dh) return toast("Yükseklik gerekli");
+    if (!dh) return toast("Yükseklik seçin");
     if (!validateHHMM(st)) return toast("Başlangıç saati HH:MM");
 
     existing.deviceName = dn;
@@ -493,6 +517,11 @@ function saveForm(){
   toast("Kaydedildi");
 }
 
+function makeEditButtonHtml(i, rec){
+  if (!rec) return "";
+  return `<button class="editBtn" data-edit="${i}" type="button" title="Düzenle" aria-label="Düzenle">✎</button>`;
+}
+
 function renderList(){
   const q = (els.search.value || "").trim().toLowerCase();
   els.list.innerHTML = "";
@@ -510,7 +539,10 @@ function renderList(){
 
     div.innerHTML = `
 <div class="itemInfo">
-  <div class="itemTitle">${escapeHtml(p.name)}</div>
+  <div class="itemTitleRow">
+    <div class="itemTitle">${escapeHtml(p.name)}</div>
+    ${makeEditButtonHtml(p.i, rec)}
+  </div>
   <div class="itemSub">${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}</div>
   <div class="itemState">
     <span class="stateDot ${st === "started" ? "started" : st === "done" ? "done" : ""}"></span>
@@ -555,25 +587,55 @@ function renderList(){
       openForm("finish", points[i]);
     });
   });
+
+  els.list.querySelectorAll("[data-edit]").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const i = Number(btn.getAttribute("data-edit"));
+      const p = points[i];
+      const rec = loadRecord(p.name);
+      if (!rec) return;
+
+      if (rec.endTime){
+        openForm("finish", p);
+      } else {
+        openForm("start", p);
+      }
+    });
+  });
+}
+
+function csvEscape(v){
+  const s = String(v ?? "");
+  return `"${s.replace(/"/g, '""')}"`;
 }
 
 function exportCSV(){
   const date = todayKey();
   const rows = [];
-  rows.push(["Tarih", "Nokta", "CihazAdı", "CihazYüksekliği", "YükTipi", "Başlangıç", "Bitiş"].join(","));
+  rows.push([
+    "Tarih",
+    "Nokta",
+    "CihazAdı",
+    "CihazYüksekliği",
+    "YükTipi",
+    "Başlangıç",
+    "Bitiş"
+  ].map(csvEscape).join(","));
 
   for (const p of points){
     const r = loadRecord(p.name);
     if (!r) continue;
+
     rows.push([
       date,
       r.point || p.name,
-      (r.deviceName || "").replaceAll(",", " "),
-      (r.deviceHeight || "").replaceAll(",", " "),
-      (r.loadType || "").replaceAll(",", " "),
+      r.deviceName || "",
+      r.deviceHeight || "",
+      r.loadType || "",
       r.startTime || "",
       r.endTime || ""
-    ].join(","));
+    ].map(csvEscape).join(","));
   }
 
   if (rows.length === 1) return toast("Kayıt yok");
@@ -643,6 +705,8 @@ async function handleKmlFile(file){
   updateDateChip();
   await waitForGoogleMaps();
 
+  sessionStoragePrefix = makeSessionId();
+
   const text = await file.text();
   points = parseKml(text);
 
@@ -659,6 +723,48 @@ async function handleKmlFile(file){
   els.screenPick.style.display = "none";
   els.screenMain.style.display = "flex";
   toast("Yüklendi");
+}
+
+function fullResetUi(){
+  clearMarkers();
+
+  if (gpsMarker){
+    gpsMarker.setMap(null);
+    gpsMarker = null;
+  }
+
+  if (watchId != null){
+    navigator.geolocation.clearWatch(watchId);
+    watchId = null;
+  }
+
+  points = [];
+  selectedPoint = null;
+  formMode = null;
+  els.list.innerHTML = "";
+  els.search.value = "";
+  els.chipCount.textContent = "0";
+  els.chipGps.textContent = "GPS";
+  setStatus("KML yükleyin");
+  closeForm();
+
+  els.screenMain.style.display = "none";
+  els.screenPick.style.display = "flex";
+}
+
+function confirmAndExit(){
+  if (!points.length){
+    fullResetUi();
+    return;
+  }
+
+  const ok = window.confirm("Çıkarsanız bu KML için girilmiş kurulum ve toplama kayıtları silinecek. Devam edilsin mi?");
+  if (!ok) return;
+
+  clearCurrentSessionRecords();
+  fullResetUi();
+  sessionStoragePrefix = "";
+  toast("Kayıtlar silindi");
 }
 
 els.fileInput.addEventListener("change", async (e) => {
@@ -679,30 +785,7 @@ els.btnKml.addEventListener("click", () => els.fileInput.click());
 els.btnMe.addEventListener("click", panToMe);
 els.btnFit.addEventListener("click", () => fitToKml(true));
 els.btnExport.addEventListener("click", exportCSV);
-
-els.btnClear.addEventListener("click", () => {
-  clearMarkers();
-
-  if (gpsMarker){
-    gpsMarker.setMap(null);
-    gpsMarker = null;
-  }
-
-  if (watchId != null){
-    navigator.geolocation.clearWatch(watchId);
-    watchId = null;
-  }
-
-  points = [];
-  els.list.innerHTML = "";
-  els.search.value = "";
-  els.chipCount.textContent = "0";
-  els.chipGps.textContent = "GPS";
-  setStatus("KML yükleyin");
-
-  els.screenMain.style.display = "none";
-  els.screenPick.style.display = "flex";
-});
+els.btnClear.addEventListener("click", confirmAndExit);
 
 els.search.addEventListener("input", renderList);
 
@@ -721,10 +804,15 @@ els.btnNowEnd.addEventListener("click", () => {
 
 els.btnFormSave.addEventListener("click", saveForm);
 
+els.deviceHeight.addEventListener("input", () => {
+  updateHeightPreview(els.deviceHeight.value);
+});
+
 enableSheetDrag();
 setSheetState(false);
 setStatus("KML yükleyin");
 updateDateChip();
+updateHeightPreview(els.deviceHeight.value);
 
 if ("serviceWorker" in navigator){
   navigator.serviceWorker.register("./sw.js").catch(() => {});
