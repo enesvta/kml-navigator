@@ -622,7 +622,35 @@ select.fInput{
   letter-spacing:0.02em;
 }
 
+.heightAdjustRow{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.heightStepBtn{
+  width:40px;
+  height:40px;
+  border:none;
+  border-radius:12px;
+  background:rgba(255,255,255,0.10);
+  color:#eef4ff;
+  font-size:22px;
+  font-weight:900;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,0.10);
+  flex:0 0 auto;
+}
+
+.heightStepBtn:active{
+  transform:scale(0.97);
+}
+
 .heightRange{
+  flex:1;
   width:100%;
   appearance:none;
   -webkit-appearance:none;
